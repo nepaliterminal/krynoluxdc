@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 
 const SUPABASE_URL = typeof import_meta_env !== "undefined" ? import_meta_env.VITE_SUPABASE_URL : "";
 const SUPABASE_KEY = typeof import_meta_env !== "undefined" ? import_meta_env.VITE_SUPABASE_KEY : "";
-const ADMIN_USER = "dcaa";
-const ADMIN_PASS = "abhinavaahan";
+const ADMIN_USER = import.meta.env.VITE_ADMIN_USER;
+const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS;
 
 async function sbFetch(path, options) {
   const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, Object.assign({
