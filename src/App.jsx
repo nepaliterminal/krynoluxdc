@@ -10,15 +10,13 @@ const LIGHT = {
   bg: "#f8f8ff", card: "#ffffff", border: "#e0e0f0",
   text: "#1a1a2e", sub: "#444466", gray: "#888899",
   input: "#ffffff", inputBorder: "#d0d0e8", inputText: "#1a1a2e",
-  navBg: "#ffffff", sideCard: "linear-gradient(135deg,#f0eaff,#e8f4ff)",
-  footerBg: "#1a1a2e", recapBg: "#ffffff", modalBg: "#ffffff",
+  navBg: "#ffffff", footerBg: "#1a1a2e", recapBg: "#ffffff", modalBg: "#ffffff",
 };
 const DARK = {
   bg: "#0f0f1a", card: "#1a1a2e", border: "#2a2a4a",
   text: "#f0f0ff", sub: "#b0b0cc", gray: "#7070aa",
   input: "#12122a", inputBorder: "#3a3a6a", inputText: "#f0f0ff",
-  navBg: "#12122a", sideCard: "linear-gradient(135deg,#1a1040,#0a1830)",
-  footerBg: "#080810", recapBg: "#1a1a2e", modalBg: "#1a1a2e",
+  navBg: "#12122a", footerBg: "#080810", recapBg: "#1a1a2e", modalBg: "#1a1a2e",
 };
 
 const G = {
@@ -39,16 +37,15 @@ const CAT_EMOJI = {
   "Local News":"📰","Schools":"🏫","Sports":"🏆",
   "Events":"🎉","Weather":"🌤️","Opinion":"💬","Student Spotlight":"🌟",
 };
-
 const WX_CODES = {
   0:"Clear Sky",1:"Mainly Clear",2:"Partly Cloudy",3:"Overcast",
-  45:"Foggy",48:"Icy Fog",51:"Light Drizzle",53:"Drizzle",55:"Heavy Drizzle",
+  45:"Foggy",51:"Light Drizzle",53:"Drizzle",55:"Heavy Drizzle",
   61:"Light Rain",63:"Rain",65:"Heavy Rain",71:"Light Snow",73:"Snow",75:"Heavy Snow",
-  80:"Rain Showers",81:"Rain Showers",82:"Heavy Showers",95:"Thunderstorm",99:"Thunderstorm",
+  80:"Rain Showers",81:"Rain Showers",82:"Heavy Showers",95:"Thunderstorm",
 };
 const WX_EMOJI = {
-  0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",48:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",
-  61:"🌧️",63:"🌧️",65:"🌧️",71:"❄️",73:"❄️",75:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",95:"⛈️",99:"⛈️",
+  0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",
+  61:"🌧️",63:"🌧️",65:"🌧️",71:"❄️",73:"❄️",75:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",95:"⛈️",
 };
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
@@ -60,41 +57,18 @@ function GradText(props) {
   );
 }
 
-function Logo(props) {
-  var s = props.size || 40;
-  return (
-    <img
-      src={props.circle ? "/logo-circle.png" : "/logo-square.png"}
-      alt="KrynoluxDC Logo"
-      style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.18, objectFit: "cover", display: "block", flexShrink: 0 }}
-      onError={function(e) {
-        e.target.style.display = "none";
-        e.target.nextSibling.style.display = "flex";
-      }}
-    />
-  );
-}
-
-function LogoFallback(props) {
-  var s = props.size || 40;
-  return (
-    <div style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.18, background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 14px rgba(123,47,255,0.3)" }}>
-      <span style={{ color: "white", fontWeight: 900, fontSize: s * 0.48, fontFamily: "Georgia,serif", lineHeight: 1 }}>K</span>
-    </div>
-  );
-}
-
 function LogoWithFallback(props) {
   const [err, setErr] = useState(false);
   var s = props.size || 40;
-  if (err) return <LogoFallback size={s} circle={props.circle} />;
+  if (err) {
+    return (
+      <div style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.2, background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: s * 0.48, color: "#fff", flexShrink: 0 }}>K</div>
+    );
+  }
   return (
-    <img
-      src={props.circle ? "/logo-circle.png" : "/logo-square.png"}
-      alt="KrynoluxDC"
+    <img src={props.circle ? "/logo-circle.png" : "/logo-square.png"} alt="KrynoluxDC"
       onError={function() { setErr(true); }}
-      style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.18, objectFit: "cover", display: "block", flexShrink: 0 }}
-    />
+      style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.2, objectFit: "cover", flexShrink: 0, display: "block" }} />
   );
 }
 
@@ -118,17 +92,33 @@ function TickerBar() {
   );
 }
 
-function Modal(props) {
+function ArticleModal(props) {
   const T = props.dark ? DARK : LIGHT;
-  if (!props.open) return null;
+  var a = props.article;
+  if (!a) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={props.onClose}>
-      <div style={{ background: T.modalBg, borderRadius: 16, padding: 32, maxWidth: 560, width: "100%", maxHeight: "80vh", overflowY: "auto", border: "1px solid " + T.border, boxShadow: "0 8px 40px rgba(0,0,0,0.3)" }} onClick={function(e) { e.stopPropagation(); }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ margin: 0, color: T.text, fontFamily: "Georgia,serif" }}><GradText>{props.title}</GradText></h2>
-          <button onClick={props.onClose} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: T.gray }}>✕</button>
+    <div onClick={props.onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={function(e) { e.stopPropagation(); }} style={{ background: T.modalBg, borderRadius: 16, width: "100%", maxWidth: 680, maxHeight: "88vh", overflowY: "auto", border: "1px solid " + T.border, boxShadow: "0 12px 60px rgba(0,0,0,0.4)" }}>
+        {a.image_url
+          ? <img src={a.image_url} alt={a.headline} style={{ width: "100%", height: 260, objectFit: "cover", borderRadius: "16px 16px 0 0", display: "block" }} />
+          : <div style={{ background: props.dark ? "linear-gradient(135deg,#1a0a3a,#0a1030)" : "linear-gradient(135deg,#f0eaff,#e8f4ff)", height: 160, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60, borderRadius: "16px 16px 0 0" }}>{CAT_EMOJI[a.category] || "📰"}</div>
+        }
+        <div style={{ padding: "24px 28px 32px" }}>
+          <span style={{ background: G.purple + "22", color: G.purple, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 4, border: "1px solid " + G.purple + "33" }}>{(a.category || "NEWS").toUpperCase()}</span>
+          <h2 style={{ margin: "12px 0", fontSize: 24, fontWeight: 900, color: T.text, lineHeight: 1.25, fontFamily: "Georgia,serif" }}>{a.headline || "Untitled"}</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid " + T.border }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 900, fontSize: 15 }}>
+              {(a.name || "K")[0].toUpperCase()}
+            </div>
+            <div>
+              <div style={{ color: T.text, fontWeight: 700, fontSize: 14 }}>{a.name || "KrynoluxDC"}</div>
+              {a.school && <div style={{ color: T.gray, fontSize: 12 }}>{a.school}</div>}
+            </div>
+            <div style={{ marginLeft: "auto", color: T.gray, fontSize: 12 }}>{a.created_at ? a.created_at.slice(0, 10) : ""}</div>
+          </div>
+          <div style={{ color: T.sub, fontSize: 15, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{a.body || "No content available."}</div>
+          <button onClick={props.onClose} style={{ marginTop: 24, padding: "10px 22px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>← Back to News</button>
         </div>
-        <div style={{ color: T.sub, lineHeight: 1.8, fontSize: 14 }}>{props.children}</div>
       </div>
     </div>
   );
@@ -157,7 +147,7 @@ function Navbar(props) {
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={props.toggleDark} style={{ background: "transparent", border: "1px solid " + T.border, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 15, color: T.text, transition: "all 0.2s" }} title={props.dark ? "Light Mode" : "Dark Mode"}>
+            <button onClick={props.toggleDark} style={{ background: "transparent", border: "1px solid " + T.border, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 15, color: T.text }}>
               {props.dark ? "☀️" : "🌙"}
             </button>
             <button onClick={function() { props.setNav("Submit"); }} style={{ background: G.grad, border: "none", color: "white", padding: "9px 18px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, boxShadow: "0 2px 10px rgba(123,47,255,0.3)" }}>
@@ -186,7 +176,7 @@ function Hero(props) {
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px" }}>
         <div style={{ display: "flex", gap: 40, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ flex: 2, minWidth: 260 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: G.grad, color: "white", fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, marginBottom: 16, letterSpacing: 0.5 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: G.grad, color: "white", fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
               🗞️ DMV YOUTH NEWS NETWORK
             </div>
             <h1 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 900, color: T.text, lineHeight: 1.15, margin: "0 0 14px", fontFamily: "Georgia,serif" }}>
@@ -203,7 +193,7 @@ function Hero(props) {
           <div style={{ flex: 1, minWidth: 200, display: "flex", justifyContent: "center" }}>
             <div style={{ background: G.grad, borderRadius: 24, padding: 4, boxShadow: "0 8px 40px rgba(123,47,255,0.25)" }}>
               <div style={{ background: T.card, borderRadius: 21, padding: "28px 24px", textAlign: "center" }}>
-                <LogoWithFallback size={72} circle={true} />
+                <LogoWithFallback size={70} circle={true} />
                 <div style={{ marginTop: 14, fontWeight: 900, fontSize: 20, letterSpacing: -0.5 }}>
                   <GradText>KRYNOLUX</GradText>
                   <span style={{ color: G.blue }}>DC</span>
@@ -223,8 +213,12 @@ function NewsCard(props) {
   const [hov, setHov] = useState(false);
   var a = props.article;
   return (
-    <div onMouseEnter={function() { setHov(true); }} onMouseLeave={function() { setHov(false); }}
-      style={{ background: T.card, borderRadius: 12, border: "1px solid " + (hov ? G.purple + "55" : T.border), overflow: "hidden", boxShadow: hov ? "0 8px 32px rgba(123,47,255,0.15)" : "0 2px 8px rgba(0,0,0,0.05)", transform: hov ? "translateY(-3px)" : "none", transition: "all 0.25s ease", cursor: "pointer" }}>
+    <div
+      onMouseEnter={function() { setHov(true); }}
+      onMouseLeave={function() { setHov(false); }}
+      onClick={function() { if (props.onClick) props.onClick(a); }}
+      style={{ background: T.card, borderRadius: 12, border: "1px solid " + (hov ? G.purple + "55" : T.border), overflow: "hidden", boxShadow: hov ? "0 8px 32px rgba(123,47,255,0.15)" : "0 2px 8px rgba(0,0,0,0.05)", transform: hov ? "translateY(-3px)" : "none", transition: "all 0.25s ease", cursor: "pointer" }}
+    >
       {a.image_url ? (
         <img src={a.image_url} alt={a.headline} style={{ width: "100%", height: props.big ? 200 : 140, objectFit: "cover", display: "block" }} />
       ) : (
@@ -247,7 +241,7 @@ function NewsCard(props) {
         </p>
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ fontSize: 12, color: T.gray }}>By {a.name || "KrynoluxDC"}{a.school ? " · " + a.school : ""}</span>
-          {props.big && <span style={{ color: G.purple, fontSize: 13, fontWeight: 700 }}>Read More →</span>}
+          <span style={{ color: G.purple, fontSize: 13, fontWeight: 700 }}>Read More →</span>
         </div>
       </div>
     </div>
@@ -264,7 +258,7 @@ function SectionLabel(props) {
   );
 }
 
-function WeatherWidget(props) {
+function WeatherWidget() {
   const [wx, setWx] = useState(null);
   const [loading, setLoading] = useState(true);
   useEffect(function() {
@@ -275,34 +269,29 @@ function WeatherWidget(props) {
   }, []);
   var temp = wx ? Math.round(wx.current.temperature_2m) : "--";
   var code = wx ? wx.current.weathercode : 0;
-  var desc = WX_CODES[code] || "Clear";
-  var emoji = WX_EMOJI[code] || "🌤️";
   return (
     <div style={{ background: G.grad, borderRadius: 12, padding: 20, color: "white", boxShadow: "0 4px 20px rgba(123,47,255,0.2)" }}>
       <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.85, marginBottom: 10 }}>⛅ DMV WEATHER · FAIRFAX, VA</div>
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "20px 0", opacity: 0.8 }}>Loading weather...</div>
-      ) : (
-        <>
+      {loading ? <div style={{ textAlign: "center", padding: "20px 0", opacity: 0.8 }}>Loading weather...</div> : (
+        <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 42, fontWeight: 900 }}>{temp}°F</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>{desc}</div>
+              <div style={{ fontSize: 13, opacity: 0.85 }}>{WX_CODES[code] || "Clear"}</div>
             </div>
-            <span style={{ fontSize: 44 }}>{emoji}</span>
+            <span style={{ fontSize: 44 }}>{WX_EMOJI[code] || "🌤️"}</span>
           </div>
           {wx && (
             <div style={{ display: "flex", gap: 5 }}>
               {wx.daily.time.slice(0, 5).map(function(date, i) {
                 var d = new Date(date);
-                var dayName = DAYS[d.getDay()];
                 var hi = Math.round(wx.daily.temperature_2m_max[i]);
                 var lo = Math.round(wx.daily.temperature_2m_min[i]);
-                var wCode = wx.daily.weathercode[i];
+                var wc = wx.daily.weathercode[i];
                 return (
                   <div key={date} style={{ flex: 1, textAlign: "center", background: "rgba(255,255,255,0.18)", borderRadius: 8, padding: "6px 2px" }}>
-                    <div style={{ fontSize: 10, opacity: 0.75 }}>{i === 0 ? "Today" : dayName}</div>
-                    <div style={{ fontSize: 15 }}>{WX_EMOJI[wCode] || "🌤️"}</div>
+                    <div style={{ fontSize: 10, opacity: 0.75 }}>{i === 0 ? "Today" : DAYS[d.getDay()]}</div>
+                    <div style={{ fontSize: 15 }}>{WX_EMOJI[wc] || "🌤️"}</div>
                     <div style={{ fontSize: 11, fontWeight: 700 }}>{hi}°</div>
                     <div style={{ fontSize: 10, opacity: 0.7 }}>{lo}°</div>
                   </div>
@@ -310,7 +299,7 @@ function WeatherWidget(props) {
               })}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -326,7 +315,7 @@ function Poll(props) {
     <div style={{ background: T.card, borderRadius: 12, border: "1px solid " + T.border, padding: 20 }}>
       <div style={{ fontSize: 11, fontWeight: 800, background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 1, marginBottom: 8 }}>📊 COMMUNITY POLL</div>
       <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 14 }}>What should we cover more?</div>
-      {opts.map(function(o,i) {
+      {opts.map(function(o, i) {
         const pct = Math.round((votes[i]/total)*100);
         return (
           <div key={o} onClick={function(){setVoted(i);}} style={{ marginBottom: 10, cursor: "pointer" }}>
@@ -428,7 +417,7 @@ function SubmitPage(props) {
                 </div>
               );
             })}
-            <p style={{ color: T.gray, fontSize: 12, marginTop: 14, lineHeight: 1.6 }}>By submitting you agree to KrynoluxDC's editorial guidelines and community standards.</p>
+            <p style={{ color: T.gray, fontSize: 12, marginTop: 14, lineHeight: 1.6 }}>By submitting you agree to KrynoluxDC's editorial guidelines.</p>
             {errMsg ? <div style={{ marginTop: 10, color: G.red, fontSize: 13, fontWeight: 600 }}>⚠️ {errMsg}</div> : null}
           </div>
         )}
@@ -462,7 +451,7 @@ function ContactPage(props) {
   return (
     <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Contact Us</GradText></h1>
-      <p style={{ color: T.sub, fontSize: 14, marginBottom: 28 }}>Have a question, tip, or want to partner with us? Reach out below.</p>
+      <p style={{ color: T.sub, fontSize: 14, marginBottom: 28 }}>Have a question, tip, or want to partner with us?</p>
       <div style={{ background: T.card, borderRadius: 14, border: "1px solid " + T.border, padding: 28 }}>
         <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Your Name</label>
         <input placeholder="Full name" style={inp} />
@@ -473,7 +462,7 @@ function ContactPage(props) {
         <button style={{ width: "100%", padding: "11px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>Send Message</button>
       </div>
       <div style={{ marginTop: 24, color: T.sub, fontSize: 13 }}>
-        <p>📧 You can also reach us at <strong style={{ color: T.text }}>contact@krynolux.work</strong></p>
+        <p>📧 <strong style={{ color: T.text }}>contact@krynolux.work</strong></p>
         <p>📍 Serving Fairfax County, Loudoun County, and Washington DC</p>
       </div>
     </div>
@@ -487,11 +476,11 @@ function PrivacyPage(props) {
       <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Privacy Policy</GradText></h1>
       <p style={{ color: T.gray, fontSize: 13, marginBottom: 24 }}>Last updated: April 2026</p>
       {[
-        ["Information We Collect","We collect information you provide when submitting stories, including your name, school, and email address. This information is used solely to process your submission and contact you about it."],
-        ["How We Use Information","Your information is used to review and publish your submitted articles and to contact you regarding your submissions. We do not sell or share your personal information with third parties."],
-        ["Data Storage","Submissions are stored securely in our database. Email addresses are never displayed publicly on the website."],
-        ["Your Rights","You may request deletion of your submitted content or personal information at any time by contacting us at contact@krynolux.work."],
-        ["Children's Privacy","KrynoluxDC is designed for users of all ages. We take special care to protect the privacy of minors and do not knowingly collect unnecessary personal data."],
+        ["Information We Collect","We collect information you provide when submitting stories, including your name, school, and email address. This is used solely to process your submission."],
+        ["How We Use Information","Your information is used to review and publish submitted articles and to contact you regarding your submissions. We do not sell or share your personal information."],
+        ["Data Storage","Submissions are stored securely. Email addresses are never displayed publicly."],
+        ["Your Rights","You may request deletion of your content or personal information at any time by contacting us at contact@krynolux.work."],
+        ["Children's Privacy","KrynoluxDC is designed for users of all ages. We take special care to protect the privacy of minors."],
       ].map(function(item) {
         return (
           <div key={item[0]} style={{ marginBottom: 24 }}>
@@ -509,17 +498,17 @@ function GuidelinesPage(props) {
   return (
     <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px" }}>
       <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Editorial Guidelines</GradText></h1>
-      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9, marginBottom: 24 }}>KrynoluxDC is committed to accurate, fair, and community-focused journalism. All contributors must follow these guidelines.</p>
+      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9, marginBottom: 24 }}>KrynoluxDC is committed to accurate, fair, and community-focused journalism.</p>
       {[
-        ["Accuracy","All facts must be verified before submission. Cite at least two sources for any factual claim. Corrections will be issued publicly when errors are found."],
-        ["Fairness","Stories must represent all sides fairly. Do not publish one-sided opinions as news. Clearly label opinion pieces as such."],
-        ["Respect","All content must be respectful and appropriate for a wide audience including younger readers. Hate speech, bullying, or discriminatory content is not permitted."],
-        ["Originality","All submitted work must be original and written by the submitting student. Plagiarism will result in permanent removal from the platform."],
-        ["Privacy","Do not publish personal information about individuals without their consent. Protect the identity of sources who request anonymity."],
-        ["Community Standards","Stories should be relevant to the Fairfax, Loudoun, or DC community. Focus on stories that uplift, inform, and engage the local community."],
+        ["Accuracy","All facts must be verified before submission. Cite at least two sources for any factual claim."],
+        ["Fairness","Stories must represent all sides fairly. Clearly label opinion pieces as such."],
+        ["Respect","All content must be respectful and appropriate for a wide audience including younger readers."],
+        ["Originality","All submitted work must be original. Plagiarism results in permanent removal."],
+        ["Privacy","Do not publish personal information about individuals without their consent."],
+        ["Community Standards","Stories should be relevant to the Fairfax, Loudoun, or DC community."],
       ].map(function(item) {
         return (
-          <div key={item[0]} style={{ marginBottom: 20, padding: "16px 20px", background: T.card, borderRadius: 10, border: "1px solid " + T.border, borderLeft: "4px solid " + G.purple }}>
+          <div key={item[0]} style={{ marginBottom: 14, padding: "16px 20px", background: T.card, borderRadius: 10, border: "1px solid " + T.border, borderLeft: "4px solid " + G.purple }}>
             <h3 style={{ color: T.text, marginBottom: 6, fontSize: 15 }}>{item[0]}</h3>
             <p style={{ color: T.sub, fontSize: 14, lineHeight: 1.7, margin: 0 }}>{item[1]}</p>
           </div>
@@ -534,7 +523,7 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState(null);
+  const [selectedArticle, setSelectedArticle] = useState(null);
   const T = dark ? DARK : LIGHT;
 
   useEffect(function() { loadStories(); }, []);
@@ -557,6 +546,7 @@ export default function App() {
 
   return (
     <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter,-apple-system,sans-serif", color: T.text, transition: "background 0.3s,color 0.3s" }}>
+      <ArticleModal article={selectedArticle} dark={dark} onClose={function(){setSelectedArticle(null);}} />
       <TickerBar />
       <Navbar nav={nav} setNav={setNav} dark={dark} toggleDark={function(){setDark(!dark);}} />
 
@@ -590,9 +580,11 @@ export default function App() {
                   </div>
                 ) : (
                   <div>
-                    <div style={{ marginBottom: 20 }}><NewsCard article={filtered[0]} big={true} dark={dark} /></div>
+                    <div style={{ marginBottom: 20 }}>
+                      <NewsCard article={filtered[0]} big={true} dark={dark} onClick={setSelectedArticle} />
+                    </div>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 16 }}>
-                      {filtered.slice(1).map(function(s){return <NewsCard key={s.id} article={s} big={false} dark={dark} />;}) }
+                      {filtered.slice(1).map(function(s){return <NewsCard key={s.id} article={s} big={false} dark={dark} onClick={setSelectedArticle} />;}) }
                     </div>
                   </div>
                 )}
@@ -605,7 +597,7 @@ export default function App() {
                         <div style={{ color: T.sub, fontSize: 14 }}>No stories yet. Submit the first story to start the daily recap!</div>
                       ) : stories.slice(0,5).map(function(s,i){
                           return (
-                            <div key={s.id} style={{ display: "flex", gap: 10, padding: "9px 0", borderBottom: i<4?"1px solid "+T.border:"none" }}>
+                            <div key={s.id} onClick={function(){setSelectedArticle(s);}} style={{ display: "flex", gap: 10, padding: "9px 0", borderBottom: i<4?"1px solid "+T.border:"none", cursor: "pointer" }}>
                               <span>{CAT_EMOJI[s.category]||"📰"}</span>
                               <span style={{ color: T.sub, fontSize: 13, lineHeight: 1.5 }}>{s.headline}</span>
                             </div>
@@ -671,9 +663,7 @@ export default function App() {
               <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>PAGES</div>
               {[["About","About"],["Contact","Contact"],["Submit","Submit"],["Privacy","Privacy"],["Guidelines","Guidelines"]].map(function(l){
                 return (
-                  <div key={l[0]} onClick={function(){setNav(l[1]);window.scrollTo(0,0);}} style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", marginBottom: 6, transition: "color 0.2s" }}
-                    onMouseEnter={function(e){e.target.style.color="white";}}
-                    onMouseLeave={function(e){e.target.style.color="rgba(255,255,255,0.5)";}}>
+                  <div key={l[0]} onClick={function(){setNav(l[1]);window.scrollTo(0,0);}} style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", marginBottom: 6 }}>
                     {l[0]}
                   </div>
                 );
