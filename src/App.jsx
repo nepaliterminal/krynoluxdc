@@ -1028,7 +1028,37 @@ function AboutPage() {
 }
 
 function ContactPage() {
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function handleSend() {
+    if (!form.name.trim()) { setErr("Please enter your name."); return; }
+    if (!form.email.includes("@")) { setErr("Please enter a valid email address."); return; }
+    if (!form.message.trim()) { setErr("Please write a message."); return; }
+    setLoading(true); setErr("");
+
+    await supabase.from("contacts").insert([{
+      name: form.name.trim(),
+      email: form.email.trim(),
+      message: form.message.trim(),
+    }]);
+
+    await sendEmail({
+      type: "contact",
+      to: "contact@krynolux.work",
+      from_name: form.name.trim(),
+      from_email: form.email.trim(),
+      message: form.message.trim(),
+    });
+
+    setLoading(false);
+    setSent(true);
+  }
+
   return (
     <StaticPage section="Get in Touch" title="Contact KrynoluxDC">
       <p style={{ marginBottom: 28 }}>Have a story tip, question, or want to partner with us? Reach out below.</p>
@@ -1038,24 +1068,50 @@ function ContactPage() {
           borderLeft: `4px solid ${TH.green}`, padding: "20px 24px", borderRadius: 3,
         }}>
           <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, color: TH.green, fontSize: 15, marginBottom: 4 }}>✓ Message sent!</div>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted }}>We'll get back to you at the email you provided.</div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted }}>We'll get back to you at <strong>{form.email}</strong>.</div>
         </div>
       ) : (
         <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "32px 36px", marginBottom: 24 }}>
-          {[["Your Name", "text", "Full name"], ["Email", "email", "your@email.com"]].map(([label, type, ph]) => (
-            <div key={label} style={{ marginBottom: 18 }}>
-              <FieldLabel muted>{label}</FieldLabel>
-              <input type={type} placeholder={ph} style={INP} />
-            </div>
-          ))}
+          <div style={{ marginBottom: 18 }}>
+            <FieldLabel muted>Your Name</FieldLabel>
+            <input
+              type="text" placeholder="Full name" value={form.name}
+              onChange={e => { set("name", e.target.value); setErr(""); }}
+              style={INP}
+            />
+          </div>
+          <div style={{ marginBottom: 18 }}>
+            <FieldLabel muted>Email</FieldLabel>
+            <input
+              type="email" placeholder="your@email.com" value={form.email}
+              onChange={e => { set("email", e.target.value); setErr(""); }}
+              style={INP}
+            />
+          </div>
           <div style={{ marginBottom: 18 }}>
             <FieldLabel muted>Message</FieldLabel>
-            <textarea placeholder="Your message…" rows={5} style={{ ...INP, resize: "vertical" }} />
+            <textarea
+              placeholder="Your message…" rows={5} value={form.message}
+              onChange={e => { set("message", e.target.value); setErr(""); }}
+              style={{ ...INP, resize: "vertical" }}
+            />
           </div>
+          {err && (
+            <div style={{
+              background: "#fdf0f0", borderLeft: `3px solid ${TH.red}`,
+              padding: "10px 14px", marginBottom: 14, borderRadius: 2,
+              fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.red,
+            }}>⚠ {err}</div>
+          )}
           <button
-            onClick={() => setSent(true)}
-            style={{ padding: "11px 26px", background: TH.text, border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700 }}
-          >Send Message</button>
+            onClick={handleSend}
+            disabled={loading}
+            style={{
+              padding: "11px 26px", background: loading ? TH.muted : TH.text,
+              border: "none", color: "#fff", cursor: loading ? "not-allowed" : "pointer",
+              fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+            }}
+          >{loading ? "Sending…" : "Send Message"}</button>
         </div>
       )}
       <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, marginTop: 20 }}>
