@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -6,425 +6,990 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-const LIGHT = {
-  bg: "#f8f8ff", card: "#ffffff", border: "#e0e0f0",
-  text: "#1a1a2e", sub: "#444466", gray: "#888899",
-  input: "#ffffff", inputBorder: "#d0d0e8", inputText: "#1a1a2e",
-  navBg: "#ffffff", footerBg: "#1a1a2e", recapBg: "#ffffff", modalBg: "#ffffff",
-};
-const DARK = {
-  bg: "#0f0f1a", card: "#1a1a2e", border: "#2a2a4a",
-  text: "#f0f0ff", sub: "#b0b0cc", gray: "#7070aa",
-  input: "#12122a", inputBorder: "#3a3a6a", inputText: "#f0f0ff",
-  navBg: "#12122a", footerBg: "#080810", recapBg: "#1a1a2e", modalBg: "#1a1a2e",
+// ── THEME ─────────────────────────────────────────────────────────────────────
+const TH = {
+  bg: "#f7f6f2", card: "#ffffff", border: "#e0ddd6",
+  text: "#111111", sub: "#2d2d2d", muted: "#888888",
+  input: "#ffffff", inputBorder: "#cccccc", inputText: "#111111",
+  accent: "#7B2FFF", red: "#c0392b", green: "#1e7e34",
+  gold: "#b7950b", blue: "#1a6faf", divider: "#e0ddd6",
 };
 
-const G = {
-  purple: "#7B2FFF", blue: "#1E90FF",
-  grad: "linear-gradient(135deg,#7B2FFF,#1E90FF)",
-  green: "#22a06b", red: "#e53e3e",
-};
-
-const NAV = ["Home","Local News","Schools","Sports","Events","Weather","Student Spotlight"];
-const CATS = ["Local News","Schools","Sports","Events","Weather","Opinion","Student Spotlight"];
-const TICKER = [
-  "KrynoluxDC is here — submit your first story today!",
-  "Covering Fairfax, Loudoun, and Washington DC",
-  "Youth-led journalism for the DMV community",
-  "News by kids. For the community.",
-];
-const CAT_EMOJI = {
-  "Local News":"📰","Schools":"🏫","Sports":"🏆",
-  "Events":"🎉","Weather":"🌤️","Opinion":"💬","Student Spotlight":"🌟",
+const NAV_ITEMS = ["Home", "Local News", "Schools", "Sports", "Events", "Weather", "Student Spotlight"];
+const CATS = ["Local News", "Schools", "Sports", "Events", "Weather", "Opinion", "Student Spotlight"];
+const CAT_COLOR = {
+  "Local News": "#c0392b", "Schools": "#1a6faf", "Sports": "#1e7e34",
+  "Events": "#7d3c98", "Weather": "#d35400", "Opinion": "#2c3e50", "Student Spotlight": "#b7950b",
 };
 const WX_CODES = {
-  0:"Clear Sky",1:"Mainly Clear",2:"Partly Cloudy",3:"Overcast",
-  45:"Foggy",51:"Light Drizzle",53:"Drizzle",55:"Heavy Drizzle",
-  61:"Light Rain",63:"Rain",65:"Heavy Rain",71:"Light Snow",73:"Snow",75:"Heavy Snow",
-  80:"Rain Showers",81:"Rain Showers",82:"Heavy Showers",95:"Thunderstorm",
+  0: "Clear", 1: "Mainly Clear", 2: "Partly Cloudy", 3: "Overcast",
+  45: "Foggy", 51: "Light Drizzle", 53: "Drizzle", 61: "Light Rain",
+  63: "Rain", 65: "Heavy Rain", 71: "Light Snow", 73: "Snow", 80: "Showers", 95: "Thunderstorm",
 };
 const WX_EMOJI = {
-  0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",51:"🌦️",53:"🌦️",55:"🌧️",
-  61:"🌧️",63:"🌧️",65:"🌧️",71:"❄️",73:"❄️",75:"❄️",80:"🌦️",81:"🌧️",82:"⛈️",95:"⛈️",
+  0: "☀️", 1: "🌤️", 2: "⛅", 3: "☁️", 45: "🌫️", 51: "🌦️",
+  53: "🌦️", 61: "🌧️", 63: "🌧️", 65: "🌧️", 71: "❄️", 73: "❄️", 80: "🌦️", 95: "⛈️",
 };
-const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const TICKER_ITEMS = [
+  "KrynoluxDC — Youth-led news for the DMV",
+  "Covering Fairfax, Loudoun, and Washington DC",
+  "Submit your story at krynolux.work",
+  "News by kids. For the community.",
+];
 
-function GradText(props) {
-  return (
-    <span style={{ background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-      {props.children}
-    </span>
-  );
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fmtDate(str) {
+  if (!str) return "";
+  return new Date(str).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 }
 
-function LogoWithFallback(props) {
+function readingTime(body) {
+  if (!body) return "1 min read";
+  const words = body.trim().split(/\s+/).length;
+  return Math.max(1, Math.ceil(words / 200)) + " min read";
+}
+
+async function sendEmail(payload) {
+  try {
+    const { error } = await supabase.functions.invoke("notify-worker", {
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+    });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// ── BASE COMPONENTS ───────────────────────────────────────────────────────────
+function Logo({ size = 40, circle = false }) {
   const [err, setErr] = useState(false);
-  var s = props.size || 40;
+  const radius = circle ? "50%" : 6;
   if (err) {
     return (
-      <div style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.2, background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: s * 0.48, color: "#fff", flexShrink: 0 }}>K</div>
+      <div style={{
+        width: size, height: size, borderRadius: radius,
+        background: `linear-gradient(135deg, ${TH.accent}, #3b82f6)`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 900, fontSize: size * 0.5, color: "#fff",
+        flexShrink: 0, fontFamily: "Georgia,serif",
+      }}>K</div>
     );
   }
   return (
-    <img src={props.circle ? "/logo-circle.png" : "/logo-square.png"} alt="KrynoluxDC"
-      onError={function() { setErr(true); }}
-      style={{ width: s, height: s, borderRadius: props.circle ? "50%" : s * 0.2, objectFit: "cover", flexShrink: 0, display: "block" }} />
+    <img
+      src={circle ? "/logo-circle.png" : "/logo-square.jpg"}
+      alt="KrynoluxDC"
+      onError={() => setErr(true)}
+      style={{ width: size, height: size, borderRadius: radius, objectFit: "cover", flexShrink: 0, display: "block" }}
+    />
   );
 }
 
+function CatBadge({ cat, large = false }) {
+  const color = CAT_COLOR[cat] || TH.muted;
+  return (
+    <span style={{
+      fontFamily: "Inter,sans-serif",
+      fontSize: large ? 11 : 10,
+      fontWeight: 800,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color,
+      borderBottom: `2px solid ${color}`,
+      paddingBottom: 1,
+    }}>{cat}</span>
+  );
+}
+
+function Divider({ label }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "28px 0 20px" }}>
+      <div style={{ flex: 1, height: 1, background: TH.divider }} />
+      {label && (
+        <span style={{
+          fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+          letterSpacing: 2, textTransform: "uppercase", color: TH.muted, whiteSpace: "nowrap",
+        }}>{label}</span>
+      )}
+      <div style={{ flex: 1, height: 1, background: TH.divider }} />
+    </div>
+  );
+}
+
+function SideLabel({ children }) {
+  return (
+    <div style={{
+      fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+      letterSpacing: 1.5, textTransform: "uppercase", color: TH.muted,
+      marginBottom: 14, paddingBottom: 10,
+      borderBottom: `2px solid ${TH.text}`,
+    }}>{children}</div>
+  );
+}
+
+// ── TICKER BAR ────────────────────────────────────────────────────────────────
 function TickerBar() {
-  const [i, setI] = useState(0);
+  const [idx, setIdx] = useState(0);
   const [fade, setFade] = useState(true);
-  useEffect(function() {
-    const t = setInterval(function() {
+
+  useEffect(() => {
+    const t = setInterval(() => {
       setFade(false);
-      setTimeout(function() { setI(function(x) { return (x + 1) % TICKER.length; }); setFade(true); }, 400);
-    }, 4000);
-    return function() { clearInterval(t); };
+      setTimeout(() => {
+        setIdx(x => (x + 1) % TICKER_ITEMS.length);
+        setFade(true);
+      }, 350);
+    }, 5000);
+    return () => clearInterval(t);
   }, []);
+
   return (
-    <div style={{ background: G.grad, padding: "6px 0" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ background: "rgba(255,255,255,0.2)", color: "white", fontSize: 10, fontWeight: 900, padding: "2px 8px", borderRadius: 4, letterSpacing: 1, whiteSpace: "nowrap" }}>UPDATE</span>
-        <span style={{ color: "white", fontSize: 13, opacity: fade ? 1 : 0, transition: "opacity 0.4s", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{TICKER[i]}</span>
+    <div style={{ background: "#0f0f0f", padding: "7px 0", borderBottom: `2px solid ${TH.accent}` }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", gap: 16 }}>
+        <span style={{
+          background: TH.accent, color: "#fff", fontSize: 9, fontWeight: 900,
+          padding: "3px 8px", letterSpacing: 1.5, textTransform: "uppercase",
+          whiteSpace: "nowrap", fontFamily: "Inter,sans-serif", flexShrink: 0,
+        }}>Breaking</span>
+        <span style={{
+          color: "#bbbbbb", fontSize: 12.5, fontFamily: "Inter,sans-serif",
+          opacity: fade ? 1 : 0, transition: "opacity 0.35s ease",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          letterSpacing: 0.2,
+        }}>{TICKER_ITEMS[idx]}</span>
       </div>
     </div>
   );
 }
 
-function ArticleModal(props) {
-  const T = props.dark ? DARK : LIGHT;
-  var a = props.article;
-  if (!a) return null;
-  return (
-    <div onClick={props.onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div onClick={function(e) { e.stopPropagation(); }} style={{ background: T.modalBg, borderRadius: 16, width: "100%", maxWidth: 680, maxHeight: "88vh", overflowY: "auto", border: "1px solid " + T.border, boxShadow: "0 12px 60px rgba(0,0,0,0.4)" }}>
-        {a.image_url
-          ? <img src={a.image_url} alt={a.headline} style={{ width: "100%", height: 260, objectFit: "cover", borderRadius: "16px 16px 0 0", display: "block" }} />
-          : <div style={{ background: props.dark ? "linear-gradient(135deg,#1a0a3a,#0a1030)" : "linear-gradient(135deg,#f0eaff,#e8f4ff)", height: 160, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60, borderRadius: "16px 16px 0 0" }}>{CAT_EMOJI[a.category] || "📰"}</div>
-        }
-        <div style={{ padding: "24px 28px 32px" }}>
-          <span style={{ background: G.purple + "22", color: G.purple, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 4, border: "1px solid " + G.purple + "33" }}>{(a.category || "NEWS").toUpperCase()}</span>
-          <h2 style={{ margin: "12px 0", fontSize: 24, fontWeight: 900, color: T.text, lineHeight: 1.25, fontFamily: "Georgia,serif" }}>{a.headline || "Untitled"}</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid " + T.border }}>
-            <div style={{ width: 36, height: 36, borderRadius: "50%", background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 900, fontSize: 15 }}>
-              {(a.name || "K")[0].toUpperCase()}
-            </div>
-            <div>
-              <div style={{ color: T.text, fontWeight: 700, fontSize: 14 }}>{a.name || "KrynoluxDC"}</div>
-              {a.school && <div style={{ color: T.gray, fontSize: 12 }}>{a.school}</div>}
-            </div>
-            <div style={{ marginLeft: "auto", color: T.gray, fontSize: 12 }}>{a.created_at ? a.created_at.slice(0, 10) : ""}</div>
-          </div>
-          <div style={{ color: T.sub, fontSize: 15, lineHeight: 1.85, whiteSpace: "pre-wrap" }}>{a.body || "No content available."}</div>
-          <button onClick={props.onClose} style={{ marginTop: 24, padding: "10px 22px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>← Back to News</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Navbar(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── NAVBAR ────────────────────────────────────────────────────────────────────
+function Navbar({ nav, setNav }) {
   const [scrolled, setScrolled] = useState(false);
-  useEffect(function() {
-    const fn = function() { setScrolled(window.scrollY > 10); };
-    window.addEventListener("scroll", fn);
-    return function() { window.removeEventListener("scroll", fn); };
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
+
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 200, background: T.navBg, borderBottom: "1px solid " + T.border, boxShadow: scrolled ? "0 2px 16px rgba(123,47,255,0.12)" : "none", transition: "all 0.3s" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid " + T.border, flexWrap: "wrap", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={function() { props.setNav("Home"); }}>
-            <LogoWithFallback size={44} />
+    <header style={{
+      position: "sticky", top: 0, zIndex: 300,
+      background: TH.card,
+      borderBottom: `1px solid ${TH.border}`,
+      boxShadow: scrolled ? "0 2px 20px rgba(0,0,0,0.09)" : "none",
+      transition: "box-shadow 0.3s",
+    }}>
+      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px" }}>
+        {/* Top bar */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "12px 0", borderBottom: `1px solid ${TH.divider}`,
+          gap: 12, flexWrap: "wrap",
+        }}>
+          {/* Logo + wordmark */}
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", flexShrink: 0 }}
+            onClick={() => { setNav("Home"); setMenuOpen(false); }}
+          >
+            <Logo size={46} />
             <div>
-              <div style={{ fontWeight: 900, fontSize: 20, letterSpacing: -0.5, lineHeight: 1.1 }}>
-                <GradText>KRYNOLUX</GradText>
-                <span style={{ color: G.blue, fontWeight: 900 }}>DC</span>
+              <div style={{
+                fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 24,
+                color: TH.text, letterSpacing: -0.5, lineHeight: 1,
+              }}>
+                Krynolux<span style={{ color: TH.accent }}>DC</span>
               </div>
-              <div style={{ fontSize: 9, color: T.gray, letterSpacing: 1.5, textTransform: "uppercase" }}>News by Kids. For the Community.</div>
+              <div style={{
+                fontFamily: "Inter,sans-serif", fontSize: 9, color: TH.muted,
+                letterSpacing: 1.6, textTransform: "uppercase", marginTop: 3,
+              }}>News by Kids. For the Community.</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={props.toggleDark} style={{ background: "transparent", border: "1px solid " + T.border, borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontSize: 15, color: T.text }}>
-              {props.dark ? "☀️" : "🌙"}
-            </button>
-            <button onClick={function() { props.setNav("Submit"); }} style={{ background: G.grad, border: "none", color: "white", padding: "9px 18px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, boxShadow: "0 2px 10px rgba(123,47,255,0.3)" }}>
-              ✍️ Submit Story
+
+          {/* Date + CTA */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="date-desktop" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted }}>
+              {today}
+            </span>
+            <button
+              onClick={() => { setNav("Submit"); setMenuOpen(false); }}
+              style={{
+                background: TH.accent, border: "none", color: "#fff",
+                padding: "9px 18px", cursor: "pointer", fontSize: 12,
+                fontWeight: 700, fontFamily: "Inter,sans-serif",
+                letterSpacing: 0.3,
+              }}
+            >Submit a Story</button>
+            {/* Hamburger */}
+            <button
+              onClick={() => setMenuOpen(m => !m)}
+              style={{
+                background: "none", border: `1px solid ${TH.border}`,
+                padding: "6px 10px", cursor: "pointer", display: "flex",
+                flexDirection: "column", gap: 4, alignItems: "center",
+              }}
+              aria-label="Menu"
+            >
+              {[0, 1, 2].map(i => (
+                <span key={i} style={{ display: "block", width: 18, height: 2, background: TH.text }} />
+              ))}
             </button>
           </div>
         </div>
-        <div style={{ display: "flex", overflowX: "auto", padding: "2px 0" }}>
-          {NAV.map(function(n) {
+
+        {/* Nav tabs */}
+        <nav style={{ display: "flex", overflowX: "auto", gap: 0, msOverflowStyle: "none", scrollbarWidth: "none" }}>
+          {NAV_ITEMS.map(n => {
+            const active = nav === n;
             return (
-              <button key={n} onClick={function() { props.setNav(n); }} style={{ padding: "10px 14px", background: "none", border: "none", borderBottom: props.nav === n ? "3px solid " + G.purple : "3px solid transparent", color: props.nav === n ? G.purple : T.sub, cursor: "pointer", fontSize: 13, fontWeight: props.nav === n ? 700 : 500, whiteSpace: "nowrap", transition: "all 0.2s" }}>
-                {n}
-              </button>
+              <button
+                key={n}
+                onClick={() => { setNav(n); setMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="nav-link"
+                style={{
+                  padding: "11px 15px",
+                  background: "none", border: "none",
+                  borderBottom: active ? `3px solid ${TH.accent}` : "3px solid transparent",
+                  color: active ? TH.accent : TH.muted,
+                  cursor: "pointer",
+                  fontSize: 11.5, fontWeight: active ? 700 : 500,
+                  whiteSpace: "nowrap", fontFamily: "Inter,sans-serif",
+                  letterSpacing: 0.5, textTransform: "uppercase",
+                  transition: "color 0.15s, border-color 0.15s",
+                }}
+              >{n}</button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <div className="mobile-menu" style={{
+          position: "absolute", top: "100%", left: 0, right: 0,
+          background: TH.card, borderTop: `1px solid ${TH.border}`,
+          borderBottom: `2px solid ${TH.accent}`,
+          boxShadow: "0 8px 30px rgba(0,0,0,0.12)", zIndex: 400, padding: "8px 0",
+        }}>
+          {[...NAV_ITEMS, ["About", "About"], ["Contact", "Contact"]].map(item => {
+            const label = Array.isArray(item) ? item[0] : item;
+            const key = Array.isArray(item) ? item[1] : item;
+            return (
+              <button
+                key={key}
+                onClick={() => { setNav(key); setMenuOpen(false); window.scrollTo(0, 0); }}
+                style={{
+                  display: "block", width: "100%", textAlign: "left",
+                  padding: "12px 24px", background: "none", border: "none",
+                  fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.text,
+                  cursor: "pointer", borderBottom: `1px solid ${TH.divider}`,
+                }}
+              >{label}</button>
             );
           })}
         </div>
-      </div>
-    </div>
+      )}
+    </header>
   );
 }
 
-function Hero(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── ARTICLE MODAL ─────────────────────────────────────────────────────────────
+function ArticleModal({ article, onClose }) {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (article) {
+      document.body.style.overflow = "hidden";
+      scrollRef.current?.scrollTo(0, 0);
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [article]);
+
+  if (!article) return null;
+  const a = article;
+  const initials = (a.name || "K").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
   return (
-    <div style={{ background: props.dark ? "linear-gradient(135deg,#1a0a3a,#0a1030)" : "linear-gradient(135deg,#f0eaff,#e8f4ff)", borderBottom: "1px solid " + T.border, padding: "48px 0 36px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px" }}>
-        <div style={{ display: "flex", gap: 40, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ flex: 2, minWidth: 260 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: G.grad, color: "white", fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
-              🗞️ DMV YOUTH NEWS NETWORK
-            </div>
-            <h1 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 900, color: T.text, lineHeight: 1.15, margin: "0 0 14px", fontFamily: "Georgia,serif" }}>
-              Real Stories.<br /><GradText>Real Students.</GradText><br />Real Impact.
-            </h1>
-            <p style={{ fontSize: 16, color: T.sub, lineHeight: 1.75, margin: "0 0 22px", maxWidth: 500 }}>
-              KrynoluxDC covers Fairfax, Loudoun, and Washington DC — written by the generation that lives it.
-            </p>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={function() { props.setNav("Submit"); }} style={{ background: G.grad, border: "none", color: "white", padding: "12px 24px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 700, boxShadow: "0 4px 16px rgba(123,47,255,0.3)" }}>✍️ Submit Your Story</button>
-              <button onClick={function() { props.setNav("Local News"); }} style={{ background: T.card, border: "1px solid " + T.border, color: G.purple, padding: "12px 24px", borderRadius: 9, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>📰 Read News</button>
-            </div>
+    <div
+      onClick={onClose}
+      className="modal-backdrop"
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)",
+        zIndex: 1000, display: "flex", alignItems: "flex-start",
+        justifyContent: "center", padding: "32px 20px",
+        overflowY: "auto",
+      }}
+    >
+      <div
+        ref={scrollRef}
+        onClick={e => e.stopPropagation()}
+        className="modal-card"
+        style={{
+          background: TH.card, width: "100%", maxWidth: 760,
+          boxShadow: "0 24px 80px rgba(0,0,0,0.35)",
+        }}
+      >
+        {/* Cover image */}
+        {a.image_url ? (
+          <div style={{ position: "relative", overflow: "hidden" }}>
+            <img
+              src={a.image_url} alt={a.headline}
+              style={{ width: "100%", height: 360, objectFit: "cover", display: "block" }}
+            />
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)",
+            }} />
           </div>
-          <div style={{ flex: 1, minWidth: 200, display: "flex", justifyContent: "center" }}>
-            <div style={{ background: G.grad, borderRadius: 24, padding: 4, boxShadow: "0 8px 40px rgba(123,47,255,0.25)" }}>
-              <div style={{ background: T.card, borderRadius: 21, padding: "28px 24px", textAlign: "center" }}>
-                <LogoWithFallback size={70} circle={true} />
-                <div style={{ marginTop: 14, fontWeight: 900, fontSize: 20, letterSpacing: -0.5 }}>
-                  <GradText>KRYNOLUX</GradText>
-                  <span style={{ color: G.blue }}>DC</span>
-                </div>
-                <div style={{ color: T.gray, fontSize: 10, letterSpacing: 1, marginTop: 2 }}>NEWS BY KIDS. FOR THE COMMUNITY.</div>
+        ) : (
+          <div style={{
+            width: "100%", height: 80,
+            background: `linear-gradient(135deg, ${CAT_COLOR[a.category] || TH.accent}22, ${TH.bg})`,
+            borderBottom: `3px solid ${CAT_COLOR[a.category] || TH.accent}`,
+          }} />
+        )}
+
+        <div style={{ padding: "32px 44px 44px" }}>
+          <div style={{ marginBottom: 14 }}>
+            <CatBadge cat={a.category || "News"} large />
+          </div>
+          <h1 style={{
+            fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700,
+            color: TH.text, lineHeight: 1.2, margin: "0 0 20px",
+          }}>{a.headline || "Untitled"}</h1>
+
+          {/* Byline */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 14,
+            paddingBottom: 20, marginBottom: 24,
+            borderBottom: `1px solid ${TH.divider}`,
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: "50%",
+              background: CAT_COLOR[a.category] || TH.text,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontWeight: 700, fontSize: 14, flexShrink: 0,
+              fontFamily: "Georgia,serif",
+            }}>{initials}</div>
+            <div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 14, color: TH.text }}>
+                By {a.name || "KrynoluxDC"}
+              </div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 2 }}>
+                {a.school ? a.school + " · " : ""}{fmtDate(a.created_at)} · {readingTime(a.body)}
               </div>
             </div>
           </div>
+
+          {/* Body */}
+          <div style={{
+            fontFamily: "Georgia,serif", fontSize: 18, color: TH.sub,
+            lineHeight: 1.9, whiteSpace: "pre-wrap",
+          }}>
+            {a.body || "No content available."}
+          </div>
+
+          <div style={{ marginTop: 36, paddingTop: 20, borderTop: `1px solid ${TH.divider}`, display: "flex", gap: 10 }}>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none", border: `1px solid ${TH.border}`,
+                padding: "9px 22px", color: TH.muted, cursor: "pointer",
+                fontSize: 13, fontFamily: "Inter,sans-serif",
+              }}
+            >← Back</button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function NewsCard(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── NEWS CARDS ────────────────────────────────────────────────────────────────
+function HeroCard({ article, onClick }) {
   const [hov, setHov] = useState(false);
-  var a = props.article;
+  const a = article;
   return (
     <div
-      onMouseEnter={function() { setHov(true); }}
-      onMouseLeave={function() { setHov(false); }}
-      onClick={function() { if (props.onClick) props.onClick(a); }}
-      style={{ background: T.card, borderRadius: 12, border: "1px solid " + (hov ? G.purple + "55" : T.border), overflow: "hidden", boxShadow: hov ? "0 8px 32px rgba(123,47,255,0.15)" : "0 2px 8px rgba(0,0,0,0.05)", transform: hov ? "translateY(-3px)" : "none", transition: "all 0.25s ease", cursor: "pointer" }}
+      onClick={() => onClick(a)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      className="card-click"
+      style={{ cursor: "pointer", position: "relative", overflow: "hidden", background: TH.text }}
     >
       {a.image_url ? (
-        <img src={a.image_url} alt={a.headline} style={{ width: "100%", height: props.big ? 200 : 140, objectFit: "cover", display: "block" }} />
+        <img
+          src={a.image_url} alt={a.headline}
+          style={{
+            width: "100%", height: 480, objectFit: "cover", display: "block",
+            transform: hov ? "scale(1.03)" : "scale(1)",
+            transition: "transform 0.6s ease", opacity: 0.85,
+          }}
+        />
       ) : (
-        <div style={{ background: props.dark ? "linear-gradient(135deg,#1a0a3a,#0a1030)" : "linear-gradient(135deg,#f0eaff,#e8f4ff)", height: props.big ? 200 : 140, display: "flex", alignItems: "center", justifyContent: "center", fontSize: props.big ? 52 : 38, borderBottom: "1px solid " + T.border }}>
-          {CAT_EMOJI[a.category] || "📰"}
+        <div style={{
+          width: "100%", height: 480, background: `linear-gradient(135deg, #1a1a2e, #16213e)`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ fontSize: 80, opacity: 0.08 }}>📰</span>
         </div>
       )}
-      <div style={{ padding: props.big ? "18px" : "14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-          <span style={{ background: G.purple + "22", color: G.purple, fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 4, letterSpacing: 0.5, border: "1px solid " + G.purple + "33" }}>
-            {(a.category || "NEWS").toUpperCase()}
-          </span>
-          <span style={{ color: T.gray, fontSize: 11 }}>{a.created_at ? a.created_at.slice(0, 10) : "Today"}</span>
+      {/* Overlay gradient */}
+      <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)",
+      }} />
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "36px 36px 32px" }}>
+        <div style={{ marginBottom: 10 }}>
+          <span style={{
+            background: CAT_COLOR[a.category] || TH.accent,
+            color: "#fff", fontSize: 10, fontWeight: 800,
+            padding: "4px 10px", letterSpacing: 1.2, textTransform: "uppercase",
+            fontFamily: "Inter,sans-serif",
+          }}>{a.category || "News"}</span>
         </div>
-        <h3 style={{ margin: "0 0 8px", fontSize: props.big ? 19 : 15, fontWeight: 800, color: T.text, lineHeight: 1.3, fontFamily: "Georgia,serif" }}>
-          {a.headline || "Untitled Story"}
-        </h3>
-        <p style={{ margin: 0, fontSize: 13, color: T.sub, lineHeight: 1.6 }}>
-          {a.body ? (a.body.length > 120 ? a.body.slice(0, 120) + "..." : a.body) : ""}
-        </p>
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, color: T.gray }}>By {a.name || "KrynoluxDC"}{a.school ? " · " + a.school : ""}</span>
-          <span style={{ color: G.purple, fontSize: 13, fontWeight: 700 }}>Read More →</span>
+        <h2 style={{
+          fontFamily: "Georgia,serif", fontSize: "clamp(22px, 3vw, 32px)",
+          fontWeight: 700, color: "#fff", lineHeight: 1.2,
+          margin: "0 0 12px", maxWidth: 640,
+          textDecoration: hov ? "underline" : "none",
+          textDecorationColor: "rgba(255,255,255,0.5)",
+        }}>{a.headline || "Untitled"}</h2>
+        {a.body && (
+          <p style={{
+            fontFamily: "Georgia,serif", fontSize: 15, color: "rgba(255,255,255,0.75)",
+            lineHeight: 1.6, margin: "0 0 14px", maxWidth: 560,
+          }}>{a.body.slice(0, 160)}…</p>
+        )}
+        <div style={{
+          fontFamily: "Inter,sans-serif", fontSize: 12,
+          color: "rgba(255,255,255,0.55)", display: "flex", gap: 8, alignItems: "center",
+        }}>
+          <span>By {a.name || "KrynoluxDC"}</span>
+          {a.school && <><span style={{ opacity: 0.4 }}>·</span><span>{a.school}</span></>}
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span>{fmtDate(a.created_at)}</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span>{readingTime(a.body)}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function SectionLabel(props) {
-  const T = props.dark ? DARK : LIGHT;
+function ArticleCard({ article, onClick, horizontal = false }) {
+  const [hov, setHov] = useState(false);
+  const a = article;
+
+  if (horizontal) {
+    return (
+      <div
+        onClick={() => onClick(a)}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        className="card-click"
+        style={{
+          cursor: "pointer", display: "flex", gap: 14, padding: "14px 0",
+          borderBottom: `1px solid ${TH.divider}`, alignItems: "flex-start",
+        }}
+      >
+        {a.image_url && (
+          <div style={{ width: 80, height: 64, flexShrink: 0, overflow: "hidden" }}>
+            <img
+              src={a.image_url} alt=""
+              style={{
+                width: "100%", height: "100%", objectFit: "cover",
+                transform: hov ? "scale(1.05)" : "scale(1)", transition: "transform 0.3s",
+              }}
+            />
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ marginBottom: 5 }}><CatBadge cat={a.category || "News"} /></div>
+          <h4 style={{
+            fontFamily: "Georgia,serif", fontSize: 15, fontWeight: 700,
+            color: TH.text, lineHeight: 1.35, margin: 0,
+            textDecoration: hov ? "underline" : "none",
+          }}>{a.headline || "Untitled"}</h4>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 5 }}>
+            {a.name || "KrynoluxDC"} · {readingTime(a.body)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
-      <div style={{ width: 4, height: 22, background: G.grad, borderRadius: 2 }} />
-      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: T.text, textTransform: "uppercase", letterSpacing: 0.5 }}>{props.label}</h2>
+    <div
+      onClick={() => onClick(a)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      className="card-click"
+      style={{
+        cursor: "pointer", background: TH.card,
+        border: `1px solid ${TH.border}`,
+        display: "flex", flexDirection: "column",
+        transition: "box-shadow 0.2s, transform 0.2s",
+        boxShadow: hov ? "0 6px 24px rgba(0,0,0,0.1)" : "0 1px 4px rgba(0,0,0,0.04)",
+        transform: hov ? "translateY(-2px)" : "none",
+      }}
+    >
+      <div style={{ overflow: "hidden", flexShrink: 0 }}>
+        {a.image_url ? (
+          <img
+            src={a.image_url} alt={a.headline}
+            style={{
+              width: "100%", height: 180, objectFit: "cover", display: "block",
+              transform: hov ? "scale(1.04)" : "scale(1)", transition: "transform 0.4s ease",
+            }}
+          />
+        ) : (
+          <div style={{
+            width: "100%", height: 180,
+            background: `linear-gradient(135deg, ${CAT_COLOR[a.category] || TH.accent}15, ${TH.bg})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderBottom: `3px solid ${CAT_COLOR[a.category] || TH.accent}33`,
+          }}>
+            <span style={{ fontSize: 36, opacity: 0.12 }}>📰</span>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "16px 18px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ marginBottom: 8 }}><CatBadge cat={a.category || "News"} /></div>
+        <h3 style={{
+          fontFamily: "Georgia,serif", fontSize: 17, fontWeight: 700,
+          color: TH.text, lineHeight: 1.3, margin: "0 0 10px",
+          textDecoration: hov ? "underline" : "none",
+        }}>{a.headline || "Untitled"}</h3>
+        {a.body && (
+          <p style={{
+            fontFamily: "Georgia,serif", fontSize: 13.5, color: TH.sub,
+            lineHeight: 1.65, margin: "0 0 auto", flex: 1,
+          }}>{a.body.slice(0, 110)}…</p>
+        )}
+        <div style={{
+          fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted,
+          marginTop: 14, paddingTop: 12, borderTop: `1px solid ${TH.divider}`,
+          display: "flex", justifyContent: "space-between",
+        }}>
+          <span><strong style={{ color: TH.sub }}>{a.name || "KrynoluxDC"}</strong>{a.school ? ` · ${a.school}` : ""}</span>
+          <span>{readingTime(a.body)}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
+// ── WEATHER WIDGET ────────────────────────────────────────────────────────────
 function WeatherWidget() {
   const [wx, setWx] = useState(null);
   const [loading, setLoading] = useState(true);
-  useEffect(function() {
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=38.8462&longitude=-77.3064&current=temperature_2m,weathercode,windspeed_10m&daily=temperature_2m_max,temperature_2m_min,weathercode&temperature_unit=fahrenheit&forecast_days=5&timezone=America%2FNew_York")
-      .then(function(r) { return r.json(); })
-      .then(function(d) { setWx(d); setLoading(false); })
-      .catch(function() { setLoading(false); });
+
+  useEffect(() => {
+    fetch(
+      "https://api.open-meteo.com/v1/forecast?latitude=38.8462&longitude=-77.3064" +
+      "&current=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min,weathercode" +
+      "&temperature_unit=fahrenheit&forecast_days=5&timezone=America%2FNew_York"
+    )
+      .then(r => r.json())
+      .then(d => { setWx(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
-  var temp = wx ? Math.round(wx.current.temperature_2m) : "--";
-  var code = wx ? wx.current.weathercode : 0;
+
+  const temp = wx ? Math.round(wx.current.temperature_2m) : "--";
+  const code = wx?.current?.weathercode ?? 0;
+
   return (
-    <div style={{ background: G.grad, borderRadius: 12, padding: 20, color: "white", boxShadow: "0 4px 20px rgba(123,47,255,0.2)" }}>
-      <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, opacity: 0.85, marginBottom: 10 }}>⛅ DMV WEATHER · FAIRFAX, VA</div>
-      {loading ? <div style={{ textAlign: "center", padding: "20px 0", opacity: 0.8 }}>Loading weather...</div> : (
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div>
-              <div style={{ fontSize: 42, fontWeight: 900 }}>{temp}°F</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>{WX_CODES[code] || "Clear"}</div>
-            </div>
-            <span style={{ fontSize: 44 }}>{WX_EMOJI[code] || "🌤️"}</span>
+    <div style={{ background: TH.card, border: `1px solid ${TH.border}` }}>
+      <div style={{
+        padding: "10px 16px", borderBottom: `1px solid ${TH.border}`,
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+      }}>
+        <SideLabel>DMV Weather</SideLabel>
+      </div>
+      <div style={{ padding: "14px 16px 16px" }}>
+        {loading ? (
+          <div style={{ color: TH.muted, fontSize: 13, fontFamily: "Inter,sans-serif", padding: "10px 0" }}>
+            Loading weather…
           </div>
-          {wx && (
-            <div style={{ display: "flex", gap: 5 }}>
-              {wx.daily.time.slice(0, 5).map(function(date, i) {
-                var d = new Date(date);
-                var hi = Math.round(wx.daily.temperature_2m_max[i]);
-                var lo = Math.round(wx.daily.temperature_2m_min[i]);
-                var wc = wx.daily.weathercode[i];
+        ) : !wx ? (
+          <div style={{ color: TH.muted, fontSize: 13, fontFamily: "Inter,sans-serif" }}>Unavailable</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 42, fontWeight: 700, color: TH.text, lineHeight: 1 }}>
+                  {temp}°
+                </div>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 4 }}>
+                  {WX_CODES[code] || "Clear"} · Fairfax, VA
+                </div>
+              </div>
+              <span style={{ fontSize: 44 }}>{WX_EMOJI[code] || "🌤️"}</span>
+            </div>
+            <div style={{ display: "flex", gap: 3 }}>
+              {wx.daily.time.slice(0, 5).map((date, i) => {
+                const d = new Date(date);
                 return (
-                  <div key={date} style={{ flex: 1, textAlign: "center", background: "rgba(255,255,255,0.18)", borderRadius: 8, padding: "6px 2px" }}>
-                    <div style={{ fontSize: 10, opacity: 0.75 }}>{i === 0 ? "Today" : DAYS[d.getDay()]}</div>
-                    <div style={{ fontSize: 15 }}>{WX_EMOJI[wc] || "🌤️"}</div>
-                    <div style={{ fontSize: 11, fontWeight: 700 }}>{hi}°</div>
-                    <div style={{ fontSize: 10, opacity: 0.7 }}>{lo}°</div>
+                  <div key={date} style={{
+                    flex: 1, textAlign: "center",
+                    background: i === 0 ? `${TH.accent}10` : TH.bg,
+                    padding: "8px 2px",
+                    border: `1px solid ${i === 0 ? TH.accent + "40" : TH.border}`,
+                  }}>
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, color: i === 0 ? TH.accent : TH.muted, textTransform: "uppercase", fontWeight: i === 0 ? 700 : 400 }}>
+                      {i === 0 ? "Now" : DAYS[d.getDay()]}
+                    </div>
+                    <div style={{ fontSize: 16, margin: "4px 0" }}>{WX_EMOJI[wx.daily.weathercode[i]] || "🌤️"}</div>
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, color: TH.text }}>
+                      {Math.round(wx.daily.temperature_2m_max[i])}°
+                    </div>
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: TH.muted }}>
+                      {Math.round(wx.daily.temperature_2m_min[i])}°
+                    </div>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-function Poll(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── POLL ──────────────────────────────────────────────────────────────────────
+function Poll() {
   const [voted, setVoted] = useState(null);
-  const opts = ["Climate & Environment","School Policies","Local Sports","Youth Entrepreneurs"];
-  const votes = [340,280,190,210];
-  const total = votes.reduce(function(a,b){return a+b;},0);
+  const opts = ["Climate & Environment", "School Policies", "Local Sports", "Youth Entrepreneurs"];
+  const votes = [340, 280, 190, 210];
+  const total = votes.reduce((a, b) => a + b, 0);
+
   return (
-    <div style={{ background: T.card, borderRadius: 12, border: "1px solid " + T.border, padding: 20 }}>
-      <div style={{ fontSize: 11, fontWeight: 800, background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 1, marginBottom: 8 }}>📊 COMMUNITY POLL</div>
-      <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 14 }}>What should we cover more?</div>
-      {opts.map(function(o, i) {
-        const pct = Math.round((votes[i]/total)*100);
-        return (
-          <div key={o} onClick={function(){setVoted(i);}} style={{ marginBottom: 10, cursor: "pointer" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: voted===i ? G.purple : T.sub, fontWeight: voted===i ? 700 : 400, marginBottom: 4 }}>
-              <span>{o}</span><span>{pct}%</span>
+    <div style={{ background: TH.card, border: `1px solid ${TH.border}` }}>
+      <div style={{ padding: "10px 16px 0" }}>
+        <SideLabel>Reader Poll</SideLabel>
+      </div>
+      <div style={{ padding: "0 16px 16px" }}>
+        <p style={{
+          fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700,
+          color: TH.text, marginBottom: 16, lineHeight: 1.4,
+        }}>What should we cover more?</p>
+        {opts.map((o, i) => {
+          const pct = Math.round((votes[i] / total) * 100);
+          const active = voted === i;
+          return (
+            <div
+              key={o}
+              onClick={() => setVoted(i)}
+              style={{ marginBottom: 12, cursor: "pointer" }}
+            >
+              <div style={{
+                display: "flex", justifyContent: "space-between",
+                fontFamily: "Inter,sans-serif", fontSize: 12,
+                color: active ? TH.accent : TH.sub,
+                fontWeight: active ? 700 : 400, marginBottom: 5,
+              }}>
+                <span>{o}</span>
+                <span style={{ fontWeight: 700 }}>{voted !== null ? `${pct}%` : ""}</span>
+              </div>
+              <div style={{ background: TH.bg, border: `1px solid ${TH.border}`, height: 6, overflow: "hidden" }}>
+                <div style={{
+                  width: voted !== null ? `${pct}%` : "0%",
+                  height: "100%",
+                  background: active ? TH.accent : (CAT_COLOR[opts[i]] || TH.muted),
+                  transition: "width 0.6s ease, background 0.3s",
+                }} />
+              </div>
             </div>
-            <div style={{ background: props.dark ? "#2a2a4a" : "#f0eaff", borderRadius: 4, height: 7 }}>
-              <div style={{ width: pct+"%", height: "100%", background: voted===i ? G.grad : (props.dark ? "linear-gradient(90deg,#5a3a99,#3a70bb)" : "linear-gradient(90deg,#c0a0ff,#90c8ff)"), borderRadius: 4, transition: "width 0.5s" }} />
-            </div>
-          </div>
-        );
-      })}
-      {voted !== null ? <div style={{ marginTop: 8, color: G.green, fontSize: 12, fontWeight: 700 }}>✓ Thanks for voting!</div> : null}
+          );
+        })}
+        {voted !== null ? (
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.green, marginTop: 10, fontWeight: 600 }}>
+            ✓ Thanks for voting! Results updated.
+          </p>
+        ) : (
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 6 }}>
+            Click an option to vote
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
-function SubmitPage(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── SUBMIT PAGE ───────────────────────────────────────────────────────────────
+const STEP_LABELS = ["Your Info", "Your Story", "Review"];
+const INP = {
+  width: "100%", padding: "11px 14px",
+  border: `1px solid ${TH.inputBorder}`, fontSize: 14,
+  outline: "none", boxSizing: "border-box", marginBottom: 4,
+  fontFamily: "Inter,sans-serif", color: TH.inputText,
+  background: TH.input, display: "block", borderRadius: 3,
+};
+
+function FieldLabel({ children, required, muted }) {
+  return (
+    <label style={{
+      fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+      color: muted ? TH.muted : (required ? TH.red : TH.sub),
+      display: "block", marginBottom: 6,
+      textTransform: "uppercase", letterSpacing: 0.9,
+    }}>{children}{required ? " *" : ""}</label>
+  );
+}
+
+function SubmitPage({ setNav }) {
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errMsg, setErrMsg] = useState("");
-  const [name, setName] = useState("");
-  const [school, setSchool] = useState("");
-  const [email, setEmail] = useState("");
-  const [headline, setHeadline] = useState("");
-  const [cat, setCat] = useState("");
-  const [body, setBody] = useState("");
+  const [err, setErr] = useState("");
+  const [refId] = useState(() => "KDC-" + Date.now().toString().slice(-6));
+  const [form, setForm] = useState({ name: "", school: "", email: "", headline: "", cat: "", body: "" });
 
-  const inp = { width: "100%", padding: "10px 14px", border: "1px solid " + T.inputBorder, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 12, fontFamily: "inherit", color: T.inputText, background: T.input, display: "block" };
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const wordCount = form.body.trim().split(/\s+/).filter(Boolean).length;
 
-  async function handleSubmit() {
-    setLoading(true); setErrMsg("");
+  function validate1() {
+    if (!form.name.trim()) { setErr("Please enter your name."); return false; }
+    if (!form.email.trim()) { setErr("Email address is required."); return false; }
+    if (!form.email.includes("@")) { setErr("Please enter a valid email address."); return false; }
+    setErr(""); return true;
+  }
+
+  function validate2() {
+    if (!form.headline.trim()) { setErr("Please add a headline."); return false; }
+    if (!form.body.trim()) { setErr("Please write your article."); return false; }
+    setErr(""); return true;
+  }
+
+  function next() {
+    if (step === 1 && !validate1()) return;
+    if (step === 2 && !validate2()) return;
+    if (step < 3) setStep(s => s + 1);
+  }
+
+  async function submit() {
+    setLoading(true); setErr("");
     const { error } = await supabase.from("submissions").insert([{
-      name: name, school: school, email: email,
-      headline: headline, category: cat, body: body, status: "pending",
+      name: form.name.trim(), school: form.school.trim(), email: form.email.trim(),
+      headline: form.headline.trim(), category: form.cat, body: form.body.trim(), status: "pending",
     }]);
-    setLoading(false);
-    if (error) { setErrMsg("Something went wrong. Please try again."); }
-    else { setDone(true); }
+    if (error) { setErr("Submission failed: " + error.message); setLoading(false); return; }
+    await sendEmail({ email: form.email, name: form.name || "Writer", headline: form.headline || "Your article", status: "received", reason: "" });
+    setLoading(false); setDone(true);
   }
 
   if (done) {
     return (
-      <div style={{ maxWidth: 540, margin: "60px auto", textAlign: "center", padding: "0 20px" }}>
-        <div style={{ width: 80, height: 80, borderRadius: "50%", background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, margin: "0 auto 20px" }}>🎉</div>
-        <h2 style={{ color: T.text, marginBottom: 10, fontFamily: "Georgia,serif" }}>Story Submitted!</h2>
-        <p style={{ color: T.sub, lineHeight: 1.7, marginBottom: 20 }}>Our editorial team will review your story within 48 hours.</p>
-        <div style={{ background: T.card, borderRadius: 10, padding: 16, fontSize: 13, color: T.sub, border: "1px solid " + T.border }}>
-          Submission ID: <strong style={{ background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>KDC-{Date.now().toString().slice(-6)}</strong>
+      <div style={{ maxWidth: 560, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: "50%",
+          background: `${TH.green}15`, border: `2px solid ${TH.green}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 20px", fontSize: 32,
+        }}>✓</div>
+        <h2 style={{ fontFamily: "Georgia,serif", fontSize: 28, fontWeight: 700, color: TH.text, marginBottom: 12 }}>
+          Story Received!
+        </h2>
+        <p style={{ fontFamily: "Inter,sans-serif", fontSize: 15, color: TH.sub, lineHeight: 1.8, marginBottom: 24 }}>
+          Thank you for submitting to KrynoluxDC. Our editorial team reviews all stories within 48 hours.
+          A confirmation was sent to <strong style={{ color: TH.text }}>{form.email}</strong>.
+        </p>
+        <div style={{
+          background: TH.bg, border: `1px solid ${TH.border}`, borderRadius: 4,
+          padding: "14px 20px", marginBottom: 28,
+          fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted,
+        }}>
+          Reference: <strong style={{ color: TH.text, letterSpacing: 1 }}>{refId}</strong>
         </div>
-        <button onClick={function(){ setDone(false); setStep(1); setName(""); setSchool(""); setEmail(""); setHeadline(""); setCat(""); setBody(""); }} style={{ marginTop: 20, padding: "10px 24px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>Submit Another</button>
+        <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <button
+            onClick={() => { setDone(false); setStep(1); setForm({ name: "", school: "", email: "", headline: "", cat: "", body: "" }); setErr(""); }}
+            style={{ padding: "11px 24px", background: TH.text, border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700 }}
+          >Submit Another Story</button>
+          <button
+            onClick={() => setNav("Home")}
+            style={{ padding: "11px 24px", background: "none", border: `1px solid ${TH.border}`, color: TH.sub, cursor: "pointer", fontSize: 13, fontFamily: "Inter,sans-serif" }}
+          >Back to Home</button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 620, margin: "0 auto", padding: "40px 20px" }}>
-      <h2 style={{ fontSize: 26, fontWeight: 900, color: T.text, marginBottom: 6, fontFamily: "Georgia,serif" }}><GradText>Submit Your Story</GradText></h2>
-      <p style={{ color: T.sub, marginBottom: 28, fontSize: 14 }}>All submissions are reviewed by our editorial team before publishing.</p>
-      <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
-        {[1,2,3].map(function(n) { return <div key={n} style={{ flex: 1, height: 5, borderRadius: 3, background: step >= n ? G.grad : T.border, transition: "background 0.3s" }} />; })}
+    <div style={{ maxWidth: 700, margin: "0 auto", padding: "48px 20px 80px" }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 36, paddingBottom: 20, borderBottom: `2px solid ${TH.text}` }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 10 }}>
+          Submit a Story
+        </div>
+        <h1 style={{ fontFamily: "Georgia,serif", fontSize: 34, fontWeight: 700, color: TH.text, margin: "0 0 10px" }}>
+          Share Your Story with the DMV
+        </h1>
+        <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, lineHeight: 1.7, margin: 0 }}>
+          All submissions are reviewed by our editorial team. You'll receive a confirmation immediately and an update when your story is reviewed.
+        </p>
       </div>
-      <div style={{ background: T.card, borderRadius: 14, border: "1px solid " + T.border, padding: 28, boxShadow: "0 4px 24px rgba(123,47,255,0.08)" }}>
+
+      {/* Step progress */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 36 }}>
+        {STEP_LABELS.map((label, i) => {
+          const n = i + 1;
+          const done_ = step > n;
+          const active = step === n;
+          return (
+            <div key={n} style={{ flex: 1, paddingRight: i < 2 ? 6 : 0 }}>
+              <div style={{
+                height: 4, marginBottom: 8, borderRadius: 2,
+                background: done_ ? TH.green : active ? TH.accent : TH.divider,
+                transition: "background 0.4s",
+              }} />
+              <div style={{
+                fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: active || done_ ? 700 : 400,
+                color: done_ ? TH.green : active ? TH.accent : TH.muted,
+                textTransform: "uppercase", letterSpacing: 0.5,
+              }}>
+                {done_ ? "✓ " : ""}{label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "32px 36px" }}>
+        {/* Step 1 */}
         {step === 1 && (
           <div>
-            <h3 style={{ color: T.text, marginBottom: 18, fontSize: 16 }}>Step 1 — Your Info</h3>
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Full Name</label>
-            <input value={name} onChange={function(e){setName(e.target.value);}} placeholder="Your full name" style={inp} />
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>School / Organization</label>
-            <input value={school} onChange={function(e){setSchool(e.target.value);}} placeholder="Your school" style={inp} />
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Email Address</label>
-            <input value={email} onChange={function(e){setEmail(e.target.value);}} placeholder="your@email.com" style={inp} />
+            <h3 style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.text, marginBottom: 24 }}>About You</h3>
+            <FieldLabel muted>Full Name</FieldLabel>
+            <input value={form.name} onChange={e => { set("name", e.target.value); setErr(""); }} placeholder="Your full name" style={INP} />
+            <div style={{ marginBottom: 12 }} />
+            <FieldLabel muted>School or Organization</FieldLabel>
+            <input value={form.school} onChange={e => set("school", e.target.value)} placeholder="e.g. Thomas Jefferson High School" style={INP} />
+            <div style={{ marginBottom: 12 }} />
+            <FieldLabel required>Email Address</FieldLabel>
+            <input value={form.email} onChange={e => { set("email", e.target.value); setErr(""); }} placeholder="your@email.com" type="email" style={{ ...INP, borderColor: err && err.includes("email") ? TH.red : TH.inputBorder }} />
+            <div style={{
+              background: "#f0faf4", border: `1px solid ${TH.green}33`,
+              borderLeft: `3px solid ${TH.green}`, padding: "10px 14px", marginTop: 8, borderRadius: 2,
+            }}>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.green, fontWeight: 600 }}>
+                📧 We'll email you a confirmation right away and notify you when your story is reviewed.
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Step 2 */}
         {step === 2 && (
           <div>
-            <h3 style={{ color: T.text, marginBottom: 18, fontSize: 16 }}>Step 2 — Your Story</h3>
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Headline</label>
-            <input value={headline} onChange={function(e){setHeadline(e.target.value);}} placeholder="Article headline" style={inp} />
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Category</label>
-            <select value={cat} onChange={function(e){setCat(e.target.value);}} style={Object.assign({},inp,{color:cat?T.inputText:T.gray})}>
-              <option value="">Select a category</option>
-              {CATS.map(function(c){return <option key={c} value={c}>{c}</option>;})}
+            <h3 style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.text, marginBottom: 24 }}>Your Story</h3>
+            <FieldLabel required>Headline</FieldLabel>
+            <input value={form.headline} onChange={e => { set("headline", e.target.value); setErr(""); }} placeholder="A clear, descriptive headline" style={INP} />
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginBottom: 16 }}>
+              {form.headline.length}/100 characters
+            </div>
+            <FieldLabel muted>Category</FieldLabel>
+            <select value={form.cat} onChange={e => set("cat", e.target.value)} style={{ ...INP, marginBottom: 16, color: form.cat ? TH.inputText : TH.muted }}>
+              <option value="">Select a category…</option>
+              {CATS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Article Body</label>
-            <textarea value={body} onChange={function(e){setBody(e.target.value);}} placeholder="Write your article or pitch here..." rows={6} style={Object.assign({},inp,{resize:"vertical"})} />
+            <FieldLabel required>Article</FieldLabel>
+            <textarea
+              value={form.body}
+              onChange={e => { set("body", e.target.value); setErr(""); }}
+              placeholder="Write your full article or story pitch here. The more detail, the better!"
+              rows={9}
+              style={{ ...INP, resize: "vertical", fontFamily: "Georgia,serif", lineHeight: 1.85, fontSize: 15.5 }}
+            />
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: wordCount > 50 ? TH.green : TH.muted, marginTop: 4 }}>
+              {wordCount} words{wordCount > 0 && wordCount < 50 ? " — aim for at least 50" : ""}
+            </div>
           </div>
         )}
+
+        {/* Step 3 */}
         {step === 3 && (
           <div>
-            <h3 style={{ color: T.text, marginBottom: 18, fontSize: 16 }}>Step 3 — Review</h3>
-            {[["Name",name],["School",school],["Email",email],["Headline",headline],["Category",cat]].map(function(item){
-              return (
-                <div key={item[0]} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid " + T.border }}>
-                  <span style={{ color: T.gray, fontSize: 13 }}>{item[0]}</span>
-                  <span style={{ color: T.text, fontSize: 13, fontWeight: 600 }}>{item[1] || "—"}</span>
+            <h3 style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.text, marginBottom: 24 }}>Review & Submit</h3>
+            <div style={{ background: TH.bg, border: `1px solid ${TH.border}`, padding: "4px 0", marginBottom: 20 }}>
+              {[["Name", form.name], ["School", form.school], ["Email", form.email], ["Headline", form.headline], ["Category", form.cat || "None selected"]].map(([label, val]) => (
+                <div key={label} style={{
+                  display: "flex", justifyContent: "space-between", gap: 20,
+                  padding: "11px 18px", borderBottom: `1px solid ${TH.divider}`,
+                }}>
+                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, color: TH.muted, textTransform: "uppercase", letterSpacing: 0.5, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: val ? TH.text : TH.muted, textAlign: "right" }}>{val || "—"}</span>
                 </div>
-              );
-            })}
-            <p style={{ color: T.gray, fontSize: 12, marginTop: 14, lineHeight: 1.6 }}>By submitting you agree to KrynoluxDC's editorial guidelines.</p>
-            {errMsg ? <div style={{ marginTop: 10, color: G.red, fontSize: 13, fontWeight: 600 }}>⚠️ {errMsg}</div> : null}
+              ))}
+              <div style={{ padding: "11px 18px" }}>
+                <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, color: TH.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>Article</span>
+                <p style={{ fontFamily: "Georgia,serif", fontSize: 13, color: TH.sub, lineHeight: 1.6, margin: "8px 0 0" }}>{form.body.slice(0, 200)}{form.body.length > 200 ? "…" : ""}</p>
+                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>{wordCount} words</div>
+              </div>
+            </div>
+            <div style={{
+              background: "#f0faf4", border: `1px solid ${TH.green}33`,
+              borderLeft: `3px solid ${TH.green}`, padding: "12px 16px", marginBottom: 16, borderRadius: 2,
+            }}>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.green, fontWeight: 700 }}>
+                📧 Confirmation sent to: {form.email}
+              </div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 3 }}>
+                You'll also be notified when your story is approved or reviewed.
+              </div>
+            </div>
+            <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, lineHeight: 1.7, margin: 0 }}>
+              By submitting you agree to KrynoluxDC's editorial guidelines and community standards.
+            </p>
           </div>
         )}
-        <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-          {step > 1 ? <button onClick={function(){setStep(step-1);}} style={{ flex: 1, padding: "11px", background: T.bg, border: "1px solid " + T.border, borderRadius: 8, color: T.sub, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>← Back</button> : null}
-          <button onClick={function(){ if(step<3){setStep(step+1);}else{handleSubmit();} }} disabled={loading} style={{ flex: 2, padding: "11px", background: loading ? T.border : G.grad, border: "none", borderRadius: 8, color: "white", cursor: loading ? "not-allowed" : "pointer", fontSize: 14, fontWeight: 700 }}>
-            {loading ? "Submitting..." : step===3 ? "Submit Story 🚀" : "Next →"}
+
+        {err && (
+          <div style={{
+            background: "#fdf0f0", border: `1px solid ${TH.red}33`,
+            borderLeft: `3px solid ${TH.red}`, padding: "10px 14px",
+            marginTop: 16, borderRadius: 2,
+          }}>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.red, fontWeight: 600 }}>⚠ {err}</span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 28 }}>
+          {step > 1 && (
+            <button
+              onClick={() => { setStep(s => s - 1); setErr(""); }}
+              style={{
+                flex: 1, padding: "12px", background: TH.bg,
+                border: `1px solid ${TH.border}`, color: TH.sub,
+                cursor: "pointer", fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 500,
+              }}
+            >← Back</button>
+          )}
+          <button
+            onClick={step < 3 ? next : submit}
+            disabled={loading}
+            style={{
+              flex: 2, padding: "12px",
+              background: loading ? TH.muted : step === 3 ? TH.green : TH.accent,
+              border: "none", color: "#fff",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+              letterSpacing: 0.3, transition: "background 0.2s",
+            }}
+          >
+            {loading ? "Submitting…" : step === 3 ? "Submit Story →" : `Continue to ${STEP_LABELS[step]} →`}
           </button>
         </div>
       </div>
@@ -432,255 +997,650 @@ function SubmitPage(props) {
   );
 }
 
-function AboutPage(props) {
-  const T = props.dark ? DARK : LIGHT;
+// ── STATIC PAGES ──────────────────────────────────────────────────────────────
+function StaticPage({ section, title, children }) {
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>About KrynoluxDC</GradText></h1>
-      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9, marginBottom: 20 }}>KrynoluxDC is a youth-led news organization covering the Fairfax, Loudoun, and Washington DC metro area. Founded by students, for the community, our mission is to amplify young voices and report on stories that matter to our generation.</p>
-      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9, marginBottom: 20 }}>Every article published on KrynoluxDC is written and reviewed by students. Our editorial team reviews submissions for accuracy, fairness, and community standards before anything goes live.</p>
-      <h2 style={{ color: T.text, fontFamily: "Georgia,serif", marginBottom: 10 }}>Our Mission</h2>
-      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9 }}>To provide accurate, engaging, and community-focused news written by the next generation of journalists across the DMV region.</p>
-    </div>
-  );
-}
-
-function ContactPage(props) {
-  const T = props.dark ? DARK : LIGHT;
-  const inp = { width: "100%", padding: "10px 14px", border: "1px solid " + T.inputBorder, borderRadius: 8, fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 12, fontFamily: "inherit", color: T.inputText, background: T.input, display: "block" };
-  return (
-    <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Contact Us</GradText></h1>
-      <p style={{ color: T.sub, fontSize: 14, marginBottom: 28 }}>Have a question, tip, or want to partner with us?</p>
-      <div style={{ background: T.card, borderRadius: 14, border: "1px solid " + T.border, padding: 28 }}>
-        <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Your Name</label>
-        <input placeholder="Full name" style={inp} />
-        <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Email</label>
-        <input placeholder="your@email.com" style={inp} />
-        <label style={{ fontSize: 12, color: T.gray, display: "block", marginBottom: 4 }}>Message</label>
-        <textarea placeholder="Your message..." rows={5} style={Object.assign({},inp,{resize:"vertical"})} />
-        <button style={{ width: "100%", padding: "11px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>Send Message</button>
+    <div style={{ maxWidth: 760, margin: "0 auto", padding: "52px 24px 80px" }}>
+      <div style={{ marginBottom: 32, paddingBottom: 20, borderBottom: `2px solid ${TH.text}` }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 10 }}>
+          {section}
+        </div>
+        <h1 style={{ fontFamily: "Georgia,serif", fontSize: 36, fontWeight: 700, color: TH.text, margin: 0 }}>
+          {title}
+        </h1>
       </div>
-      <div style={{ marginTop: 24, color: T.sub, fontSize: 13 }}>
-        <p>📧 <strong style={{ color: T.text }}>contact@krynolux.work</strong></p>
-        <p>📍 Serving Fairfax County, Loudoun County, and Washington DC</p>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 17, color: TH.sub, lineHeight: 1.95 }}>
+        {children}
       </div>
     </div>
   );
 }
 
-function PrivacyPage(props) {
-  const T = props.dark ? DARK : LIGHT;
+function AboutPage() {
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Privacy Policy</GradText></h1>
-      <p style={{ color: T.gray, fontSize: 13, marginBottom: 24 }}>Last updated: April 2026</p>
-      {[
-        ["Information We Collect","We collect information you provide when submitting stories, including your name, school, and email address. This is used solely to process your submission."],
-        ["How We Use Information","Your information is used to review and publish submitted articles and to contact you regarding your submissions. We do not sell or share your personal information."],
-        ["Data Storage","Submissions are stored securely. Email addresses are never displayed publicly."],
-        ["Your Rights","You may request deletion of your content or personal information at any time by contacting us at contact@krynolux.work."],
-        ["Children's Privacy","KrynoluxDC is designed for users of all ages. We take special care to protect the privacy of minors."],
-      ].map(function(item) {
-        return (
-          <div key={item[0]} style={{ marginBottom: 24 }}>
-            <h3 style={{ color: T.text, marginBottom: 8 }}>{item[0]}</h3>
-            <p style={{ color: T.sub, fontSize: 14, lineHeight: 1.8 }}>{item[1]}</p>
-          </div>
-        );
-      })}
-    </div>
+    <StaticPage section="About Us" title="About KrynoluxDC">
+      <p style={{ marginBottom: 22 }}>KrynoluxDC is the DMV's first youth-led digital news organization. We cover local news, schools, sports, events, and community stories across Fairfax County, Loudoun County, and Washington DC.</p>
+      <p style={{ marginBottom: 22 }}>Every article published on KrynoluxDC is written by a student journalist and reviewed by our editorial team before going live — ensuring accuracy, fairness, and community relevance.</p>
+      <h2 style={{ fontFamily: "Georgia,serif", fontSize: 24, color: TH.text, margin: "36px 0 14px", paddingBottom: 10, borderBottom: `1px solid ${TH.divider}` }}>Our Mission</h2>
+      <p>To give young journalists a credible platform to report on the stories that matter most to their generation and their community across the DMV.</p>
+    </StaticPage>
   );
 }
 
-function GuidelinesPage(props) {
-  const T = props.dark ? DARK : LIGHT;
+function ContactPage() {
+  const [sent, setSent] = useState(false);
   return (
-    <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px" }}>
-      <h1 style={{ fontFamily: "Georgia,serif", color: T.text, marginBottom: 8 }}><GradText>Editorial Guidelines</GradText></h1>
-      <p style={{ color: T.sub, fontSize: 15, lineHeight: 1.9, marginBottom: 24 }}>KrynoluxDC is committed to accurate, fair, and community-focused journalism.</p>
-      {[
-        ["Accuracy","All facts must be verified before submission. Cite at least two sources for any factual claim."],
-        ["Fairness","Stories must represent all sides fairly. Clearly label opinion pieces as such."],
-        ["Respect","All content must be respectful and appropriate for a wide audience including younger readers."],
-        ["Originality","All submitted work must be original. Plagiarism results in permanent removal."],
-        ["Privacy","Do not publish personal information about individuals without their consent."],
-        ["Community Standards","Stories should be relevant to the Fairfax, Loudoun, or DC community."],
-      ].map(function(item) {
-        return (
-          <div key={item[0]} style={{ marginBottom: 14, padding: "16px 20px", background: T.card, borderRadius: 10, border: "1px solid " + T.border, borderLeft: "4px solid " + G.purple }}>
-            <h3 style={{ color: T.text, marginBottom: 6, fontSize: 15 }}>{item[0]}</h3>
-            <p style={{ color: T.sub, fontSize: 14, lineHeight: 1.7, margin: 0 }}>{item[1]}</p>
+    <StaticPage section="Get in Touch" title="Contact KrynoluxDC">
+      <p style={{ marginBottom: 28 }}>Have a story tip, question, or want to partner with us? Reach out below.</p>
+      {sent ? (
+        <div style={{
+          background: "#f0faf4", border: `1px solid ${TH.green}40`,
+          borderLeft: `4px solid ${TH.green}`, padding: "20px 24px", borderRadius: 3,
+        }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, color: TH.green, fontSize: 15, marginBottom: 4 }}>✓ Message sent!</div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted }}>We'll get back to you at the email you provided.</div>
+        </div>
+      ) : (
+        <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "32px 36px", marginBottom: 24 }}>
+          {[["Your Name", "text", "Full name"], ["Email", "email", "your@email.com"]].map(([label, type, ph]) => (
+            <div key={label} style={{ marginBottom: 18 }}>
+              <FieldLabel muted>{label}</FieldLabel>
+              <input type={type} placeholder={ph} style={INP} />
+            </div>
+          ))}
+          <div style={{ marginBottom: 18 }}>
+            <FieldLabel muted>Message</FieldLabel>
+            <textarea placeholder="Your message…" rows={5} style={{ ...INP, resize: "vertical" }} />
           </div>
-        );
-      })}
-    </div>
+          <button
+            onClick={() => setSent(true)}
+            style={{ padding: "11px 26px", background: TH.text, border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700 }}
+          >Send Message</button>
+        </div>
+      )}
+      <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, marginTop: 20 }}>
+        📧 <strong style={{ color: TH.text }}>contact@krynolux.work</strong> · Fairfax · Loudoun · Washington DC
+      </p>
+    </StaticPage>
   );
 }
 
+function PrivacyPage() {
+  const sections = [
+    ["Information We Collect", "We collect information you provide when submitting stories including your name, school, and email address. This is used solely to process your submission and contact you about it."],
+    ["How We Use Information", "Your information is used to review and publish articles and to contact contributors. We do not sell or share your personal information with third parties."],
+    ["Data Security", "All submitted data is stored securely. Email addresses are never displayed publicly on the website."],
+    ["Your Rights", "You may request deletion of your content or personal data at any time by contacting us at contact@krynolux.work."],
+    ["Children's Privacy", "KrynoluxDC serves users of all ages. We take special care to protect the privacy of minors and comply with applicable children's privacy laws."],
+  ];
+  return (
+    <StaticPage section="Legal" title="Privacy Policy">
+      {sections.map(([title, body]) => (
+        <div key={title} style={{ marginBottom: 28 }}>
+          <h3 style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.text, marginBottom: 10 }}>{title}</h3>
+          <p style={{ margin: 0, color: TH.sub }}>{body}</p>
+        </div>
+      ))}
+    </StaticPage>
+  );
+}
+
+function GuidelinesPage() {
+  const items = [
+    ["Accuracy", "All facts must be verified before submission. We require at least two independent sources for any factual claim."],
+    ["Fairness", "Stories must represent all perspectives fairly. Opinion pieces must be clearly labeled as such."],
+    ["Respect", "All content must be appropriate for a general audience including younger readers."],
+    ["Originality", "All submitted work must be original. Plagiarism results in permanent removal from the platform."],
+    ["Privacy", "Do not publish identifying information about private individuals without their consent."],
+    ["Community Relevance", "Stories should serve the interests of the Fairfax, Loudoun, or DC community."],
+  ];
+  return (
+    <StaticPage section="Editorial Standards" title="Editorial Guidelines">
+      <p style={{ marginBottom: 28 }}>KrynoluxDC holds all contributors to the highest standards of accuracy, fairness, and community responsibility.</p>
+      {items.map(([title, body]) => (
+        <div key={title} style={{ marginBottom: 20, paddingLeft: 20, borderLeft: `3px solid ${TH.accent}` }}>
+          <h3 style={{ fontFamily: "Georgia,serif", fontSize: 18, color: TH.text, marginBottom: 6 }}>{title}</h3>
+          <p style={{ margin: 0, fontSize: 16, color: TH.sub }}>{body}</p>
+        </div>
+      ))}
+    </StaticPage>
+  );
+}
+
+// ── SKELETON LOADER ───────────────────────────────────────────────────────────
+function Skeleton({ w = "100%", h = 16, mb = 8, radius = 3 }) {
+  return (
+    <div style={{
+      width: w, height: h, background: `linear-gradient(90deg, ${TH.border} 25%, ${TH.bg} 50%, ${TH.border} 75%)`,
+      backgroundSize: "200% 100%", borderRadius: radius, marginBottom: mb,
+      animation: "shimmer 1.4s infinite",
+    }} />
+  );
+}
+
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [nav, setNav] = useState("Home");
-  const [dark, setDark] = useState(false);
+  const [pageKey, setPageKey] = useState(0);
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState(null);
-  const T = dark ? DARK : LIGHT;
 
-  useEffect(function() { loadStories(); }, []);
+  useEffect(() => { loadStories(); }, []);
 
   async function loadStories() {
     setLoading(true);
-    const { data } = await supabase.from("submissions").select("*").eq("status","approved").order("created_at",{ascending:false});
-    if (data) { setStories(data); }
+    const { data } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false });
+    if (data) setStories(data);
     setLoading(false);
   }
 
-  var filtered = nav === "Home" ? stories : stories.filter(function(s){return s.category===nav;});
+  function navigate(page) {
+    setNav(page);
+    setPageKey(k => k + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
-  var pageContent = null;
-  if (nav === "Submit") pageContent = <SubmitPage dark={dark} />;
-  else if (nav === "About") pageContent = <AboutPage dark={dark} />;
-  else if (nav === "Contact") pageContent = <ContactPage dark={dark} />;
-  else if (nav === "Privacy") pageContent = <PrivacyPage dark={dark} />;
-  else if (nav === "Guidelines") pageContent = <GuidelinesPage dark={dark} />;
+  const filtered = nav === "Home" ? stories : stories.filter(s => s.category === nav);
+  const uniqueWriters = Array.from(new Map(stories.map(s => [s.name, s])).values()).slice(0, 4);
+
+  const staticPages = {
+    Submit: <SubmitPage setNav={navigate} />,
+    About: <AboutPage />,
+    Contact: <ContactPage />,
+    Privacy: <PrivacyPage />,
+    Guidelines: <GuidelinesPage />,
+  };
 
   return (
-    <div style={{ background: T.bg, minHeight: "100vh", fontFamily: "Inter,-apple-system,sans-serif", color: T.text, transition: "background 0.3s,color 0.3s" }}>
-      <ArticleModal article={selectedArticle} dark={dark} onClose={function(){setSelectedArticle(null);}} />
-      <TickerBar />
-      <Navbar nav={nav} setNav={setNav} dark={dark} toggleDark={function(){setDark(!dark);}} />
+    <div style={{ background: TH.bg, minHeight: "100vh", color: TH.text }}>
+      <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; }
 
-      {pageContent ? pageContent : (
-        <div>
-          {nav === "Home" && <Hero setNav={setNav} dark={dark} />}
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 60px" }}>
-            {nav !== "Home" && (
-              <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid " + T.border }}>
-                <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, fontFamily: "Georgia,serif" }}><GradText>{nav}</GradText></h1>
-                <p style={{ color: T.sub, marginTop: 6, fontSize: 14 }}>Latest {nav} stories from the DMV</p>
+        /* ── Page transition ── */
+        @keyframes pageEnter {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .page-enter {
+          animation: pageEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        /* ── Modal animations ── */
+        @keyframes backdropIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes modalSlideIn {
+          from { opacity: 0; transform: translateY(32px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-backdrop { animation: backdropIn 0.25s ease both; }
+        .modal-card     { animation: modalSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+        /* ── Button press ── */
+        button {
+          transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+        }
+        button:active {
+          transform: scale(0.94) !important;
+          opacity: 0.85;
+        }
+
+        /* ── Clickable card press ── */
+        .card-click {
+          transition: box-shadow 0.22s ease, transform 0.22s ease;
+        }
+        .card-click:active {
+          transform: scale(0.97) !important;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.08) !important;
+        }
+
+        /* ── Nav link press ── */
+        .nav-link { transition: color 0.15s, border-color 0.15s; }
+        .nav-link:active { opacity: 0.6; }
+
+        /* ── Input focus glow ── */
+        input:focus, textarea:focus, select:focus {
+          outline: none;
+          border-color: ${TH.accent} !important;
+          box-shadow: 0 0 0 3px ${TH.accent}22;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        /* ── Skeleton shimmer ── */
+        @keyframes shimmer {
+          0%   { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: ${TH.bg}; }
+        ::-webkit-scrollbar-thumb { background: ${TH.border}; border-radius: 3px; }
+        nav::-webkit-scrollbar { display: none; }
+
+        /* ── Mobile menu animation ── */
+        @keyframes expandDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .mobile-menu { animation: expandDown 0.2s ease both; }
+
+        /* ── Responsive grid ── */
+        .main-grid {
+          display: grid;
+          grid-template-columns: 1fr 300px;
+          gap: 48px;
+          align-items: start;
+        }
+        .footer-grid {
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr;
+          gap: 40px;
+          margin-bottom: 40px;
+          padding-bottom: 32px;
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .date-desktop { display: block; }
+
+        @media (max-width: 960px) {
+          .main-grid { grid-template-columns: 1fr; gap: 32px; }
+          .sidebar   { position: static !important; }
+          .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+        }
+        @media (max-width: 600px) {
+          .footer-grid { grid-template-columns: 1fr; gap: 20px; }
+          .date-desktop { display: none; }
+        }
+      `}</style>
+
+      <ArticleModal article={selectedArticle} onClose={() => setSelectedArticle(null)} />
+      <TickerBar />
+      <Navbar nav={nav} setNav={navigate} />
+
+      {staticPages[nav] ? (
+        <div key={pageKey} className="page-enter">{staticPages[nav]}</div>
+      ) : (
+        <main key={pageKey} className="page-enter" style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
+
+          {/* Home hero banner */}
+          {nav === "Home" && (
+            <div style={{
+              textAlign: "center", padding: "44px 24px 32px",
+              borderBottom: `3px solid ${TH.text}`, marginBottom: 36,
+            }}>
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                background: `${TH.accent}10`, border: `1px solid ${TH.accent}30`,
+                padding: "5px 14px", marginBottom: 16,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: TH.accent, display: "inline-block" }} />
+                <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: TH.accent }}>
+                  Independent · Youth-Led · Local
+                </span>
               </div>
-            )}
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 28, alignItems: "start" }}>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-                  <SectionLabel label={nav==="Home"?"Latest Stories":nav} dark={dark} />
-                  <button onClick={loadStories} style={{ padding: "5px 12px", background: "transparent", border: "1px solid " + T.border, borderRadius: 6, color: G.purple, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🔄 Refresh</button>
+              <h1 style={{
+                fontFamily: "Georgia,serif",
+                fontSize: "clamp(32px, 5.5vw, 68px)",
+                fontWeight: 700, color: TH.text, lineHeight: 1.05,
+                margin: "0 0 14px", letterSpacing: -1,
+              }}>The DMV's Student Newsroom</h1>
+              <p style={{
+                fontFamily: "Inter,sans-serif", fontSize: 15, color: TH.muted,
+                maxWidth: 500, margin: "0 auto 24px", lineHeight: 1.75,
+              }}>
+                Real stories from student journalists across Fairfax, Loudoun, and Washington DC.
+              </p>
+              <button
+                onClick={() => navigate("Submit")}
+                style={{
+                  background: TH.accent, border: "none", color: "#fff",
+                  padding: "12px 28px", cursor: "pointer",
+                  fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+                  letterSpacing: 0.5,
+                }}
+              >Submit a Story →</button>
+            </div>
+          )}
+
+          {/* Section header (non-home) */}
+          {nav !== "Home" && (
+            <div style={{
+              padding: "36px 0 22px",
+              borderBottom: `3px solid ${CAT_COLOR[nav] || TH.text}`,
+              marginBottom: 32,
+            }}>
+              <div style={{
+                fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+                letterSpacing: 1.5, textTransform: "uppercase",
+                color: CAT_COLOR[nav] || TH.accent, marginBottom: 8,
+              }}>{nav}</div>
+              <h1 style={{ fontFamily: "Georgia,serif", fontSize: 36, fontWeight: 700, color: TH.text, margin: "0 0 8px" }}>{nav}</h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, margin: 0 }}>
+                Latest {nav.toLowerCase()} coverage from Fairfax, Loudoun, and Washington DC
+              </p>
+            </div>
+          )}
+
+          {/* Main grid */}
+          <div className="main-grid">
+
+            {/* Articles column */}
+            <div>
+              {/* Section label */}
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18,
+              }}>
+                <div style={{
+                  fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+                  letterSpacing: 1.5, textTransform: "uppercase", color: TH.muted,
+                }}>
+                  {nav === "Home" ? "Latest Stories" : nav}
+                  {filtered.length > 0 && ` · ${filtered.length} ${filtered.length === 1 ? "story" : "stories"}`}
                 </div>
-                {loading ? (
-                  <div style={{ textAlign: "center", padding: 60, color: T.gray }}>
-                    <div style={{ fontSize: 36, marginBottom: 10 }}>⏳</div>
-                    <div>Loading stories...</div>
-                  </div>
-                ) : filtered.length === 0 ? (
-                  <div style={{ background: T.card, borderRadius: 14, border: "1px solid " + T.border, padding: "48px 20px", textAlign: "center" }}>
-                    <div style={{ fontSize: 44, marginBottom: 14 }}>📭</div>
-                    <div style={{ fontWeight: 800, fontSize: 17, color: T.text, marginBottom: 8, fontFamily: "Georgia,serif" }}>No stories yet</div>
-                    <div style={{ color: T.sub, fontSize: 14, marginBottom: 20 }}>Be the first to submit a story!</div>
-                    <button onClick={function(){setNav("Submit");}} style={{ padding: "10px 22px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>✍️ Submit First Story</button>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ marginBottom: 20 }}>
-                      <NewsCard article={filtered[0]} big={true} dark={dark} onClick={setSelectedArticle} />
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 16 }}>
-                      {filtered.slice(1).map(function(s){return <NewsCard key={s.id} article={s} big={false} dark={dark} onClick={setSelectedArticle} />;}) }
-                    </div>
-                  </div>
-                )}
-                {nav === "Home" && (
-                  <div style={{ marginTop: 32 }}>
-                    <SectionLabel label="Daily Recap" dark={dark} />
-                    <div style={{ background: T.recapBg, borderRadius: 12, border: "1px solid " + T.border, padding: 20 }}>
-                      <div style={{ fontSize: 13, color: T.gray, marginBottom: 12 }}>{new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
-                      {stories.length === 0 ? (
-                        <div style={{ color: T.sub, fontSize: 14 }}>No stories yet. Submit the first story to start the daily recap!</div>
-                      ) : stories.slice(0,5).map(function(s,i){
-                          return (
-                            <div key={s.id} onClick={function(){setSelectedArticle(s);}} style={{ display: "flex", gap: 10, padding: "9px 0", borderBottom: i<4?"1px solid "+T.border:"none", cursor: "pointer" }}>
-                              <span>{CAT_EMOJI[s.category]||"📰"}</span>
-                              <span style={{ color: T.sub, fontSize: 13, lineHeight: 1.5 }}>{s.headline}</span>
-                            </div>
-                          );
-                        })
-                      }
-                    </div>
-                  </div>
-                )}
+                <button
+                  onClick={loadStories}
+                  style={{
+                    background: "none", border: `1px solid ${TH.border}`,
+                    padding: "5px 12px", color: TH.muted, cursor: "pointer",
+                    fontSize: 11, fontFamily: "Inter,sans-serif",
+                  }}
+                >↻ Refresh</button>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                <WeatherWidget dark={dark} />
-                <Poll dark={dark} />
-                <div style={{ background: T.card, borderRadius: 12, border: "1px solid " + T.border, padding: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 1, marginBottom: 12 }}>🌟 STUDENT SPOTLIGHT</div>
+
+              {/* Loading skeletons */}
+              {loading && (
+                <div>
+                  <div style={{ background: TH.card, border: `1px solid ${TH.border}`, marginBottom: 24 }}>
+                    <div style={{ width: "100%", height: 480, background: TH.border, marginBottom: 0 }} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                    {[1, 2, 3].map(k => (
+                      <div key={k} style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: 16 }}>
+                        <div style={{ height: 150, background: TH.border, marginBottom: 12 }} />
+                        <Skeleton h={10} w="50%" mb={10} />
+                        <Skeleton h={16} mb={6} />
+                        <Skeleton h={16} w="80%" mb={6} />
+                        <Skeleton h={12} w="60%" mb={0} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!loading && filtered.length === 0 && (
+                <div style={{
+                  background: TH.card, border: `1px solid ${TH.border}`,
+                  padding: "80px 40px", textAlign: "center",
+                }}>
+                  <div style={{ fontSize: 52, marginBottom: 16, opacity: 0.3 }}>📰</div>
+                  <h3 style={{ fontFamily: "Georgia,serif", fontSize: 22, color: TH.text, marginBottom: 10 }}>
+                    No stories published yet
+                  </h3>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, marginBottom: 24, lineHeight: 1.7 }}>
+                    Be the first student journalist to submit a story to KrynoluxDC.
+                  </p>
+                  <button
+                    onClick={() => navigate("Submit")}
+                    style={{
+                      background: TH.accent, border: "none", color: "#fff",
+                      padding: "12px 28px", cursor: "pointer",
+                      fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+                    }}
+                  >Submit the First Story</button>
+                </div>
+              )}
+
+              {/* Articles */}
+              {!loading && filtered.length > 0 && (
+                <>
+                  {/* Hero card */}
+                  <div style={{ marginBottom: 28 }}>
+                    <HeroCard article={filtered[0]} onClick={setSelectedArticle} />
+                  </div>
+
+                  {/* Card grid */}
+                  {filtered.length > 1 && (
+                    <>
+                      <Divider label="More Stories" />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 16, marginBottom: 36 }}>
+                        {filtered.slice(1, 7).map(s => (
+                          <ArticleCard key={s.id} article={s} onClick={setSelectedArticle} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Top stories list */}
+                  {nav === "Home" && stories.length >= 3 && (
+                    <>
+                      <Divider label="Today's Recap" />
+                      <div style={{ background: TH.card, border: `1px solid ${TH.border}` }}>
+                        <div style={{
+                          padding: "14px 20px", borderBottom: `1px solid ${TH.border}`,
+                          display: "flex", justifyContent: "space-between", alignItems: "center",
+                        }}>
+                          <span style={{ fontFamily: "Georgia,serif", fontSize: 16, fontWeight: 700, color: TH.text }}>
+                            Top Stories
+                          </span>
+                          <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>
+                            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                          </span>
+                        </div>
+                        <div style={{ padding: "4px 20px 8px" }}>
+                          {stories.slice(0, 5).map((s, i) => (
+                            <div
+                              key={s.id}
+                              onClick={() => setSelectedArticle(s)}
+                              className="card-click"
+                              style={{
+                                display: "flex", gap: 16, padding: "12px 0",
+                                borderBottom: i < 4 ? `1px solid ${TH.divider}` : "none",
+                                cursor: "pointer", alignItems: "flex-start",
+                              }}
+                            >
+                              <span style={{
+                                fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700,
+                                color: i < 3 ? TH.accent : TH.border, minWidth: 28, lineHeight: 1,
+                                marginTop: 2,
+                              }}>{i + 1}</span>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ marginBottom: 4 }}><CatBadge cat={s.category} /></div>
+                                <div style={{ fontFamily: "Georgia,serif", fontSize: 14.5, color: TH.text, lineHeight: 1.4 }}>
+                                  {s.headline}
+                                </div>
+                                <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>
+                                  {s.name} · {readingTime(s.body)}
+                                </div>
+                              </div>
+                              {s.image_url && (
+                                <img src={s.image_url} alt="" style={{ width: 60, height: 48, objectFit: "cover", flexShrink: 0 }} />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Load more (remaining) */}
+                  {filtered.length > 7 && (
+                    <>
+                      <Divider label="All Stories" />
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 16 }}>
+                        {filtered.slice(7).map(s => (
+                          <ArticleCard key={s.id} article={s} onClick={setSelectedArticle} />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <aside className="sidebar" style={{ display: "flex", flexDirection: "column", gap: 20, position: "sticky", top: 110 }}>
+              <WeatherWidget />
+              <Poll />
+
+              {/* Student Spotlight */}
+              <div style={{ background: TH.card, border: `1px solid ${TH.border}` }}>
+                <div style={{ padding: "12px 16px 0" }}>
+                  <SideLabel>Student Spotlight</SideLabel>
+                </div>
+                <div style={{ padding: "0 16px 16px" }}>
                   {stories.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "16px 0" }}>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>🎖️</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6 }}>No featured writers yet</div>
-                      <div style={{ fontSize: 12, color: T.gray, marginBottom: 14 }}>Writers appear here once articles are approved.</div>
-                      <button onClick={function(){setNav("Submit");}} style={{ padding: "8px 16px", background: G.grad, border: "none", borderRadius: 7, color: "white", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Become a Writer</button>
+                      <p style={{ fontFamily: "Georgia,serif", fontSize: 14, color: TH.muted, marginBottom: 14 }}>
+                        Writers appear here once articles are published.
+                      </p>
+                      <button
+                        onClick={() => navigate("Submit")}
+                        style={{ background: TH.text, border: "none", color: "#fff", padding: "8px 18px", cursor: "pointer", fontSize: 12, fontFamily: "Inter,sans-serif", fontWeight: 700 }}
+                      >Become a Writer</button>
                     </div>
-                  ) : Array.from(new Map(stories.map(function(s){return[s.name,s];})).values()).slice(0,3).map(function(s){
-                      return (
-                        <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid " + T.border }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: G.grad, display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: 900, fontSize: 14, flexShrink: 0 }}>
-                            {(s.name||"?")[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: 700, fontSize: 13, color: T.text }}>{s.name}</div>
-                            <div style={{ fontSize: 11, color: T.gray }}>{s.school}{s.category?" · "+s.category:""}</div>
-                          </div>
+                  ) : uniqueWriters.map((s, i) => (
+                    <div
+                      key={s.id}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 0",
+                        borderBottom: i < uniqueWriters.length - 1 ? `1px solid ${TH.divider}` : "none",
+                      }}
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: CAT_COLOR[s.category] || TH.text,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontWeight: 700, fontSize: 14, flexShrink: 0,
+                        fontFamily: "Georgia,serif",
+                      }}>
+                        {(s.name || "K")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 13, color: TH.text }}>
+                          {s.name}
                         </div>
-                      );
-                    })
-                  }
-                </div>
-                <div style={{ background: dark?"linear-gradient(135deg,#1a0a3a,#0a1030)":"linear-gradient(135deg,#f0eaff,#e8f4ff)", borderRadius: 12, padding: 20, border: "1px solid " + T.border }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 8 }}>✍️ Are you a student journalist?</div>
-                  <p style={{ fontSize: 13, color: T.sub, lineHeight: 1.6, marginBottom: 14 }}>Submit your story and join the KrynoluxDC team!</p>
-                  <button onClick={function(){setNav("Submit");}} style={{ width: "100%", padding: "10px", background: G.grad, border: "none", borderRadius: 8, color: "white", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>Get Started →</button>
+                        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>
+                          {s.school || "KrynoluxDC"}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+
+              {/* CTA block */}
+              <div style={{
+                background: `linear-gradient(135deg, #1a1a2e, ${TH.accent}cc)`,
+                padding: 22,
+              }}>
+                <div style={{
+                  fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 800,
+                  letterSpacing: 1.5, textTransform: "uppercase",
+                  color: "rgba(255,255,255,0.5)", marginBottom: 10,
+                }}>Join Our Team</div>
+                <p style={{
+                  fontFamily: "Georgia,serif", fontSize: 15, color: "#fff",
+                  lineHeight: 1.65, marginBottom: 18,
+                }}>
+                  Are you a student journalist? Submit your story and become part of KrynoluxDC.
+                </p>
+                <button
+                  onClick={() => navigate("Submit")}
+                  style={{
+                    background: "#fff", border: "none", color: TH.text,
+                    padding: "10px 20px", cursor: "pointer",
+                    fontSize: 12, fontFamily: "Inter,sans-serif",
+                    fontWeight: 800, width: "100%",
+                  }}
+                >Submit a Story →</button>
+              </div>
+            </aside>
           </div>
-        </div>
+        </main>
       )}
 
-      <div style={{ background: T.footerBg, color: "white", padding: "36px 20px", marginTop: 40 }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 28, marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+      {/* Footer */}
+      <footer style={{ background: "#0f0f0f", color: "#fff", padding: "52px 24px 32px" }}>
+        <div style={{ maxWidth: 1240, margin: "0 auto" }}>
+          <div className="footer-grid">
+            {/* Brand */}
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                <LogoWithFallback size={38} circle={true} />
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 17, background: G.grad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>KRYNOLUXDC</div>
-                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, letterSpacing: 1 }}>krynolux.work</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+                <Logo size={40} circle />
+                <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: "#fff" }}>
+                  Krynolux<span style={{ color: TH.accent }}>DC</span>
                 </div>
               </div>
-              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, lineHeight: 1.7 }}>News by Kids. For the Community.<br />Fairfax · Loudoun · Washington DC</div>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.8, maxWidth: 260, margin: "0 0 16px" }}>
+                News by Kids. For the Community. Covering Fairfax, Loudoun, and Washington DC.
+              </p>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.25)", letterSpacing: 0.5 }}>
+                krynolux.work
+              </div>
             </div>
+
+            {/* Sections */}
             <div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>PAGES</div>
-              {[["About","About"],["Contact","Contact"],["Submit","Submit"],["Privacy","Privacy"],["Guidelines","Guidelines"]].map(function(l){
-                return (
-                  <div key={l[0]} onClick={function(){setNav(l[1]);window.scrollTo(0,0);}} style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", marginBottom: 6 }}>
-                    {l[0]}
-                  </div>
-                );
-              })}
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Sections</div>
+              {NAV_ITEMS.map(n => (
+                <div
+                  key={n}
+                  onClick={() => { navigate(n); }}
+                  style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10, cursor: "pointer", transition: "color 0.15s" }}
+                  onMouseEnter={e => e.target.style.color = "#fff"}
+                  onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.5)"}
+                >{n}</div>
+              ))}
             </div>
+
+            {/* Company */}
             <div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>COVERAGE</div>
-              {["Fairfax County","Loudoun County","Washington DC","Local Schools","Youth Sports","Community Events"].map(function(l){
-                return <div key={l} style={{ color: "rgba(255,255,255,0.45)", fontSize: 13, marginBottom: 5 }}>{l}</div>;
-              })}
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Company</div>
+              {[["About", "About"], ["Contact", "Contact"], ["Submit a Story", "Submit"]].map(([label, key]) => (
+                <div
+                  key={key}
+                  onClick={() => navigate(key)}
+                  style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10, cursor: "pointer" }}
+                  onMouseEnter={e => e.target.style.color = "#fff"}
+                  onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.5)"}
+                >{label}</div>
+              ))}
+            </div>
+
+            {/* Legal */}
+            <div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Legal</div>
+              {[["Privacy Policy", "Privacy"], ["Editorial Guidelines", "Guidelines"]].map(([label, key]) => (
+                <div
+                  key={key}
+                  onClick={() => navigate(key)}
+                  style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 10, cursor: "pointer" }}
+                  onMouseEnter={e => e.target.style.color = "#fff"}
+                  onMouseLeave={e => e.target.style.color = "rgba(255,255,255,0.5)"}
+                >{label}</div>
+              ))}
             </div>
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>KrynoluxDC · Youth-Led News Network · All rights reserved</div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+              © {new Date().getFullYear()} KrynoluxDC · Youth-Led News Network · All rights reserved
+            </span>
+            <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+              Fairfax · Loudoun · Washington DC
+            </span>
           </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }
