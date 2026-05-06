@@ -52,7 +52,7 @@ function readingTime(body) {
 
 async function sendEmail(payload) {
   try {
-    const { error } = await supabase.functions.invoke("notify-worker", {
+    const { error } = await supabase.functions.invoke("notify-writer", {
       body: JSON.stringify(payload),
       headers: { "Content-Type": "application/json" },
     });
@@ -1048,10 +1048,9 @@ function ContactPage() {
     }]);
 
     await sendEmail({
-      type: "contact",
-      to: "contact@krynolux.work",
-      from_name: form.name.trim(),
-      from_email: form.email.trim(),
+      status: "contact",
+      name: form.name.trim(),
+      email: form.email.trim(),
       message: form.message.trim(),
     });
 
