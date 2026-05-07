@@ -1203,7 +1203,74 @@ function GuidelinesPage() {
   );
 }
 
-// ── NEWSLETTER SIGNUP ─────────────────────────────────────────────────────────
+// ── NEWSLETTER STRIP (full-width, above footer) ───────────────────────────────
+function NewsletterStrip() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState(null);
+
+  async function subscribe() {
+    const trimmed = email.trim();
+    if (!trimmed.includes("@")) return;
+    setStatus("loading");
+    const { error } = await supabase.from("newsletter_subscribers").insert([{ email: trimmed, source: "website" }]);
+    if (error) setStatus(error.code === "23505" ? "exists" : "error");
+    else setStatus("done");
+  }
+
+  return (
+    <div style={{ background: TH.accent, padding: "52px 24px" }}>
+      <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.6)", marginBottom: 12 }}>
+          Newsletter
+        </div>
+        <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(22px, 4vw, 34px)", fontWeight: 700, color: "#fff", margin: "0 0 10px", lineHeight: 1.2 }}>
+          Stay in the Loop
+        </h2>
+        <p style={{ fontFamily: "Inter,sans-serif", fontSize: 15, color: "rgba(255,255,255,0.75)", margin: "0 0 28px", lineHeight: 1.7 }}>
+          Get new stories from KrynoluxDC delivered straight to your inbox — youth journalism from Fairfax, Loudoun, and DC.
+        </p>
+
+        {status === "done" ? (
+          <div style={{ background: "rgba(255,255,255,0.15)", padding: "18px 28px", borderRadius: 4, display: "inline-block" }}>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#fff", fontWeight: 700 }}>✓ You're subscribed!</div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>New stories will land in your inbox.</div>
+          </div>
+        ) : status === "exists" ? (
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "rgba(255,255,255,0.85)" }}>✓ That email is already subscribed!</div>
+        ) : (
+          <div style={{ display: "flex", gap: 0, maxWidth: 460, margin: "0 auto", borderRadius: 3, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setStatus(null); }}
+              onKeyDown={e => e.key === "Enter" && subscribe()}
+              placeholder="Enter your email address"
+              style={{
+                flex: 1, padding: "14px 18px", border: "none",
+                fontSize: 14, fontFamily: "Inter,sans-serif",
+                outline: "none", background: "#fff", color: TH.text,
+              }}
+            />
+            <button
+              onClick={subscribe}
+              disabled={status === "loading"}
+              style={{
+                padding: "14px 22px", background: TH.text, border: "none",
+                color: "#fff", cursor: "pointer", fontSize: 13,
+                fontFamily: "Inter,sans-serif", fontWeight: 800,
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >{status === "loading" ? "…" : "Subscribe"}</button>
+          </div>
+        )}
+        {status === "error" && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 10 }}>Something went wrong — try again.</div>}
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 14 }}>No spam. Unsubscribe any time.</div>
+      </div>
+    </div>
+  );
+}
+
+// ── NEWSLETTER SIGNUP (sidebar) ───────────────────────────────────────────────
 function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState(null); // null | "loading" | "done" | "exists" | "error"
@@ -1733,6 +1800,9 @@ export default function App() {
           </div>
         </main>
       )}
+
+      {/* Newsletter strip */}
+      <NewsletterStrip />
 
       {/* Footer */}
       <footer style={{ background: "#0f0f0f", color: "#fff", padding: "52px 24px 32px" }}>
