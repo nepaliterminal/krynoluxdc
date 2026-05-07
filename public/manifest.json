@@ -1,22 +1,39 @@
 {
   "name": "KrynoluxDC",
   "short_name": "KrynoluxDC",
-  "description": "News by Kids. For the Community.",
+  "description": "News by Kids. For the Community. — Youth journalism from Fairfax, Loudoun, and Washington DC.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8f8ff",
+  "background_color": "#f7f6f2",
   "theme_color": "#7B2FFF",
-  "orientation": "portrait",
+  "orientation": "portrait-primary",
+  "categories": ["news", "education"],
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/logo-circle.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/logo-circle.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-circle.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Submit a Story",
+      "url": "/?page=submit",
+      "description": "Submit your story to KrynoluxDC"
     }
   ]
 }
