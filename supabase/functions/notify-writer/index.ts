@@ -55,6 +55,31 @@ Deno.serve(async (req) => {
       const contactMsg = body.message || "";
       subject = "New Contact Message from " + name;
       message = "You have a new message via KrynoluxDC.\n\nFrom: " + name + "\nEmail: " + email + "\n\nMessage:\n" + contactMsg + "\n\n— KrynoluxDC Contact Form";
+    } else if (status === "newsletter") {
+      const emails: string[] = body.emails || [];
+      if (emails.length === 0) {
+        return new Response(JSON.stringify({ error: "No subscribers" }), { status: 400, headers: Object.assign({}, corsHeaders, { "Content-Type": "application/json" }) });
+      }
+      const headline = body.headline || "New story on KrynoluxDC";
+      const excerpt  = body.excerpt  || "";
+      const author   = body.author   || "KrynoluxDC";
+      subject = "New story: " + headline;
+      message = "Hi,\n\nA new story has just been published on KrynoluxDC!\n\n————————————————\n" + headline + "\nBy " + author + (excerpt ? "\n\n" + excerpt + "…" : "") + "\n\nRead it at: krynolux.work\n————————————————\n\nYou're receiving this because you subscribed to KrynoluxDC updates.\nTo unsubscribe reply with 'unsubscribe' to contact@krynolux.work\n\n— KrynoluxDC Editorial Team";
+      const resendRes2 = await fetch("https://api.resend.com/emails/batch", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + Deno.env.get("RESEND_API_KEY"), "Content-Type": "application/json" },
+        body: JSON.stringify(emails.map(addr => ({
+          from: "KrynoluxDC <noreply@krynolux.work>",
+          to: [addr],
+          subject,
+          text: message,
+        }))),
+      });
+      const batchData = await resendRes2.json();
+      if (!resendRes2.ok) {
+        return new Response(JSON.stringify({ error: batchData }), { status: 500, headers: Object.assign({}, corsHeaders, { "Content-Type": "application/json" }) });
+      }
+      return new Response(JSON.stringify({ success: true, sent: emails.length }), { status: 200, headers: Object.assign({}, corsHeaders, { "Content-Type": "application/json" }) });
     } else {
       return new Response(
         JSON.stringify({ error: "Unknown status: " + status }),

@@ -1203,6 +1203,68 @@ function GuidelinesPage() {
   );
 }
 
+// ── NEWSLETTER SIGNUP ─────────────────────────────────────────────────────────
+function NewsletterSignup() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState(null); // null | "loading" | "done" | "exists" | "error"
+
+  async function subscribe() {
+    const trimmed = email.trim();
+    if (!trimmed.includes("@")) return;
+    setStatus("loading");
+    const { error } = await supabase.from("newsletter_subscribers").insert([{ email: trimmed, source: "website" }]);
+    if (error) {
+      setStatus(error.code === "23505" ? "exists" : "error");
+    } else {
+      setStatus("done");
+    }
+  }
+
+  return (
+    <div style={{ background: `linear-gradient(135deg, #1a1a2e, ${TH.accent}cc)`, padding: 22 }}>
+      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 8 }}>Stay Informed</div>
+      <p style={{ fontFamily: "Georgia,serif", fontSize: 15, color: "#fff", lineHeight: 1.6, marginBottom: 16, margin: "0 0 16px" }}>
+        Get the latest DMV youth news straight to your inbox.
+      </p>
+      {status === "done" ? (
+        <div style={{ background: "rgba(255,255,255,0.12)", padding: "12px 14px", borderRadius: 3 }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "#fff", fontWeight: 700 }}>✓ You're subscribed!</div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 3 }}>We'll send you new stories as they're published.</div>
+        </div>
+      ) : status === "exists" ? (
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>That email is already subscribed!</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <input
+            type="email"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setStatus(null); }}
+            onKeyDown={e => e.key === "Enter" && subscribe()}
+            placeholder="your@email.com"
+            style={{
+              padding: "10px 12px", border: "none", fontSize: 13,
+              fontFamily: "Inter,sans-serif", borderRadius: 3, width: "100%",
+              background: "rgba(255,255,255,0.15)", color: "#fff",
+              outline: "none",
+            }}
+          />
+          {status === "error" && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "#ffaaaa" }}>Something went wrong. Try again.</div>}
+          <button
+            onClick={subscribe}
+            disabled={status === "loading"}
+            style={{
+              background: "#fff", border: "none", color: TH.text,
+              padding: "10px", cursor: "pointer", fontSize: 12,
+              fontFamily: "Inter,sans-serif", fontWeight: 800, borderRadius: 3,
+              opacity: status === "loading" ? 0.7 : 1,
+            }}
+          >{status === "loading" ? "Subscribing…" : "Subscribe →"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SKELETON LOADER ───────────────────────────────────────────────────────────
 function Skeleton({ w = "100%", h = 16, mb = 8, radius = 3 }) {
   return (
@@ -1665,32 +1727,8 @@ export default function App() {
                 </div>
               </div>
 
-              {/* CTA block */}
-              <div style={{
-                background: `linear-gradient(135deg, #1a1a2e, ${TH.accent}cc)`,
-                padding: 22,
-              }}>
-                <div style={{
-                  fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 800,
-                  letterSpacing: 1.5, textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.5)", marginBottom: 10,
-                }}>Join Our Team</div>
-                <p style={{
-                  fontFamily: "Georgia,serif", fontSize: 15, color: "#fff",
-                  lineHeight: 1.65, marginBottom: 18,
-                }}>
-                  Are you a student journalist? Submit your story and become part of KrynoluxDC.
-                </p>
-                <button
-                  onClick={() => navigate("Submit")}
-                  style={{
-                    background: "#fff", border: "none", color: TH.text,
-                    padding: "10px 20px", cursor: "pointer",
-                    fontSize: 12, fontFamily: "Inter,sans-serif",
-                    fontWeight: 800, width: "100%",
-                  }}
-                >Submit a Story →</button>
-              </div>
+              {/* Newsletter signup */}
+              <NewsletterSignup />
             </aside>
           </div>
         </main>
