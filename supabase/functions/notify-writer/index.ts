@@ -225,19 +225,21 @@ Deno.serve(async (req) => {
 
     } else if (status === "school_approved") {
       const schoolName = body.school_name || "Your school";
+      const subdomainUrl = body.subdomain || "https://krynolux.work";
       subject = "Your school is approved — Welcome to KrynoluxDC!";
-      plainText = `Hi ${name},\n\nGreat news! ${schoolName} has been approved as a KrynoluxDC partner school.\n\nYou can now log in to the School Portal at krynolux.work to publish student stories directly on KrynoluxDC.\n\nLog in with the email and password you registered with.\n\nWelcome aboard!\n\n— The KrynoluxDC Editorial Team\ncontact@krynolux.work`;
+      plainText = `Hi ${name},\n\nGreat news! ${schoolName} has been approved as a KrynoluxDC partner school.\n\nYour school's news page is live at: ${subdomainUrl}\n\nLog in to the School Portal at krynolux.work with your registered email and password to start submitting stories.\n\nWelcome aboard!\n\n— The KrynoluxDC Editorial Team\ncontact@krynolux.work`;
       html = baseLayout(
         `${schoolName} is approved!`,
         `<div class="body">
           <span class="status-icon">🎉</span>
           <p class="greeting">You're approved, ${name}!</p>
-          <p class="text"><strong>${schoolName}</strong> has been approved as a KrynoluxDC partner school. Your students can now publish their stories directly on the DMV's youth news network.</p>
+          <p class="text"><strong>${schoolName}</strong> has been approved as a KrynoluxDC partner school. Your students can now publish their stories on the DMV's youth news network.</p>
           <div class="highlight-box">
-            <div class="label">Next Step</div>
-            <div class="value" style="font-size:14px;font-weight:500;line-height:1.6;">Log in to the School Portal with your registered email and password to start submitting stories.</div>
+            <div class="label">Your School's News Page</div>
+            <div class="value"><a href="${subdomainUrl}" style="color:#7B2FFF;">${subdomainUrl}</a></div>
           </div>
-          <a href="https://krynolux.work" class="cta-btn">Go to School Portal →</a>
+          <p class="text">Log in to the School Portal with your registered email and password to start submitting student stories. All submissions are reviewed by our editorial team before going live.</p>
+          <a href="${subdomainUrl}" class="cta-btn">View Your School Page →</a>
           <hr class="divider"/>
           <p class="text" style="font-size:13px;color:#888;margin:0;">Questions? <a href="mailto:contact@krynolux.work" style="color:#7B2FFF;">contact@krynolux.work</a></p>
         </div>`

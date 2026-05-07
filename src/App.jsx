@@ -1662,8 +1662,107 @@ function Skeleton({ w = "100%", h = 16, mb = 8, radius = 3 }) {
   );
 }
 
+// ── SCHOOL SUBDOMAIN PAGE ─────────────────────────────────────────────────────
+function SchoolSubdomainPage({ slug }) {
+  const [school, setSchool]   = useState(null);
+  const [stories, setStories] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const { data: sc } = await supabase.from("school_accounts").select("*").eq("subdomain", slug).eq("status", "approved").maybeSingle();
+      if (!sc) { setNotFound(true); setLoading(false); return; }
+      setSchool(sc);
+      const { data: arts } = await supabase.from("submissions").select("*").eq("school", sc.school_name).eq("status", "approved").order("created_at", { ascending: false });
+      if (arts) setStories(arts);
+      setLoading(false);
+    }
+    load();
+  }, [slug]);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: TH.bg }}>
+      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted }}>Loading…</div>
+    </div>
+  );
+
+  if (notFound) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: TH.bg, flexDirection: "column", gap: 16, padding: 24 }}>
+      <div style={{ fontSize: 48 }}>🏫</div>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, color: TH.text }}>School not found</div>
+      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted }}>This school page doesn't exist or hasn't been approved yet.</div>
+      <a href="https://krynolux.work" style={{ color: TH.accent, fontFamily: "Inter,sans-serif", fontSize: 14 }}>← Back to KrynoluxDC</a>
+    </div>
+  );
+
+  return (
+    <div style={{ background: TH.bg, minHeight: "100vh" }}>
+      <style>{`* { box-sizing: border-box; } body { margin: 0; }`}</style>
+      <ArticleModal article={selected} onClose={() => setSelected(null)} />
+
+      {/* School header */}
+      <div style={{ background: "#0f0f0f", padding: "0 0 0", borderBottom: `3px solid ${TH.accent}` }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg, ${TH.accent}, #3b82f6)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 20, color: "#fff" }}>
+              {school.school_name[0]}
+            </div>
+            <div>
+              <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: "#fff", lineHeight: 1 }}>{school.school_name}</div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4, letterSpacing: 0.5 }}>{school.county} · Powered by <a href="https://krynolux.work" style={{ color: TH.accent, textDecoration: "none" }}>KrynoluxDC</a></div>
+            </div>
+          </div>
+          <a href="https://krynolux.work" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>← KrynoluxDC</a>
+        </div>
+      </div>
+
+      {/* Hero band */}
+      <div style={{ background: `linear-gradient(135deg, #1a1a2e, ${TH.accent}cc)`, padding: "48px 24px 40px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 12 }}>Student Journalism</div>
+          <h1 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(28px,5vw,52px)", fontWeight: 700, color: "#fff", margin: "0 0 12px", lineHeight: 1.1 }}>{school.school_name} News</h1>
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>
+            {stories.length} published {stories.length === 1 ? "story" : "stories"} · {school.county}
+          </p>
+        </div>
+      </div>
+
+      {/* Stories grid */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
+        {stories.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 20px" }}>
+            <div style={{ fontSize: 40, opacity: 0.3, marginBottom: 16 }}>📰</div>
+            <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.muted }}>No stories published yet.</div>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 24 }}>
+            {stories.map(a => <ArticleCard key={a.id} article={a} onClick={setSelected} />)}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ background: "#0f0f0f", padding: "24px", textAlign: "center" }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+          Part of the <a href="https://krynolux.work" style={{ color: TH.accent, textDecoration: "none" }}>KrynoluxDC</a> youth journalism network · {school.county}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
+  // Detect subdomain — render school page instead of main site if found
+  const schoolSlug = (() => {
+    const parts = window.location.hostname.split(".");
+    if (parts.length >= 3 && parts[0] !== "www") return parts[0];
+    return null;
+  })();
+  if (schoolSlug) return <SchoolSubdomainPage slug={schoolSlug} />;
+
   const [nav, setNav] = useState("Home");
   const [pageKey, setPageKey] = useState(0);
   const [stories, setStories] = useState([]);
