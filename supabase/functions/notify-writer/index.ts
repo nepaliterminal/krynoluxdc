@@ -51,6 +51,9 @@ Deno.serve(async (req) => {
     } else if (status === "received") {
       subject = "We received your story — KrynoluxDC";
       message = "Hi " + name + ",\n\nThank you for submitting \"" + headline + "\" to KrynoluxDC!\n\nOur editorial team will review your story within 48 hours. You will receive another email once a decision has been made.\n\nQuestions? contact@krynolux.work\n\n— The KrynoluxDC Editorial Team";
+    } else if (status === "subscribed") {
+      subject = "You're subscribed to KrynoluxDC!";
+      message = "Hi,\n\nThank you for subscribing to KrynoluxDC — the DMV's youth-led news network!\n\nYou'll receive an email whenever a new story is published. We cover local news, schools, sports, events, and more across Fairfax, Loudoun, and Washington DC.\n\nHave a story tip? Submit at: krynolux.work\n\nTo unsubscribe at any time, reply to this email with 'unsubscribe'.\n\n— The KrynoluxDC Editorial Team\ncontact@krynolux.work";
     } else if (status === "contact") {
       const contactMsg = body.message || "";
       subject = "New Contact Message from " + name;

@@ -1213,8 +1213,9 @@ function NewsletterStrip() {
     if (!trimmed.includes("@")) return;
     setStatus("loading");
     const { error } = await supabase.from("newsletter_subscribers").insert([{ email: trimmed, source: "website" }]);
-    if (error) setStatus(error.code === "23505" ? "exists" : "error");
-    else setStatus("done");
+    if (error) { setStatus(error.code === "23505" ? "exists" : "error"); return; }
+    await sendEmail({ status: "subscribed", email: trimmed });
+    setStatus("done");
   }
 
   return (
@@ -1280,11 +1281,9 @@ function NewsletterSignup() {
     if (!trimmed.includes("@")) return;
     setStatus("loading");
     const { error } = await supabase.from("newsletter_subscribers").insert([{ email: trimmed, source: "website" }]);
-    if (error) {
-      setStatus(error.code === "23505" ? "exists" : "error");
-    } else {
-      setStatus("done");
-    }
+    if (error) { setStatus(error.code === "23505" ? "exists" : "error"); return; }
+    await sendEmail({ status: "subscribed", email: trimmed });
+    setStatus("done");
   }
 
   return (
