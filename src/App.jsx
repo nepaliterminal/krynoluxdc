@@ -418,7 +418,7 @@ function ArticleModal({ article, onClose }) {
             {a.body || "No content available."}
           </div>
 
-          <div style={{ marginTop: 36, paddingTop: 20, borderTop: `1px solid ${TH.divider}`, display: "flex", gap: 10 }}>
+          <div style={{ marginTop: 36, paddingTop: 20, borderTop: `1px solid ${TH.divider}`, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={onClose}
               style={{
@@ -427,6 +427,23 @@ function ArticleModal({ article, onClose }) {
                 fontSize: 13, fontFamily: "Inter,sans-serif",
               }}
             >← Back</button>
+            <button
+              onClick={async () => {
+                const url = window.location.href;
+                const text = `${a.headline} — KrynoluxDC`;
+                if (navigator.share) {
+                  await navigator.share({ title: a.headline, text, url }).catch(() => {});
+                } else {
+                  await navigator.clipboard.writeText(url);
+                  alert("Link copied to clipboard!");
+                }
+              }}
+              style={{
+                background: TH.accent, border: "none",
+                padding: "9px 22px", color: "#fff", cursor: "pointer",
+                fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+              }}
+            >Share ↗</button>
           </div>
         </div>
       </div>
@@ -1204,6 +1221,14 @@ export default function App() {
   const [stories, setStories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [search, setSearch] = useState("");
+  const [showTop, setShowTop] = useState(false);
+
+  useEffect(() => {
+    const fn = () => setShowTop(window.scrollY > 500);
+    window.addEventListener("scroll", fn, { passive: true });
+    return () => window.removeEventListener("scroll", fn);
+  }, []);
 
   useEffect(() => { loadStories(); }, []);
 
@@ -1224,7 +1249,9 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  const filtered = nav === "Home" ? stories : stories.filter(s => s.category === nav);
+  const q = search.trim().toLowerCase();
+  const filtered = (nav === "Home" ? stories : stories.filter(s => s.category === nav))
+    .filter(s => !q || s.headline?.toLowerCase().includes(q) || s.body?.toLowerCase().includes(q) || s.name?.toLowerCase().includes(q));
   const uniqueWriters = Array.from(new Map(stories.map(s => [s.name, s])).values()).slice(0, 4);
 
   const staticPages = {
@@ -1406,6 +1433,28 @@ export default function App() {
               </p>
             </div>
           )}
+
+          {/* Search bar */}
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ position: "relative", maxWidth: 480 }}>
+              <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: TH.muted, fontSize: 15, pointerEvents: "none" }}>⌕</span>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search stories, writers…"
+                style={{
+                  width: "100%", padding: "10px 14px 10px 38px",
+                  border: `1px solid ${TH.border}`, background: TH.card,
+                  fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.text,
+                  outline: "none", borderRadius: 3,
+                }}
+              />
+              {search && (
+                <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: TH.muted, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
+              )}
+            </div>
+            {q && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 8 }}>{filtered.length} result{filtered.length !== 1 ? "s" : ""} for "{search}"</div>}
+          </div>
 
           {/* Main grid */}
           <div className="main-grid">
@@ -1720,6 +1769,22 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Back to top */}
+      {showTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          style={{
+            position: "fixed", bottom: 28, right: 24, zIndex: 500,
+            width: 44, height: 44, borderRadius: "50%",
+            background: TH.text, border: "none", color: "#fff",
+            fontSize: 18, cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: "pageEnter 0.25s ease both",
+          }}
+          aria-label="Back to top"
+        >↑</button>
+      )}
     </div>
   );
 }
