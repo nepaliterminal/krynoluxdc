@@ -315,6 +315,12 @@ function ArticleModal({ article, onClose }) {
     return () => { document.body.style.overflow = ""; };
   }, [article]);
 
+  useEffect(() => {
+    const onKey = e => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   if (!article) return null;
   const a = article;
   const initials = (a.name || "K").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -336,9 +342,22 @@ function ArticleModal({ article, onClose }) {
         className="modal-card"
         style={{
           background: TH.card, width: "100%", maxWidth: 760,
-          boxShadow: "0 24px 80px rgba(0,0,0,0.35)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.35)", position: "relative",
         }}
       >
+        {/* X close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 14, right: 14, zIndex: 10,
+            width: 34, height: 34, borderRadius: "50%",
+            background: "rgba(0,0,0,0.45)", border: "none",
+            color: "#fff", fontSize: 18, lineHeight: 1,
+            cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+          aria-label="Close"
+        >×</button>
+
         {/* Cover image */}
         {a.image_url ? (
           <div style={{ position: "relative", overflow: "hidden" }}>
@@ -418,6 +437,7 @@ function ArticleModal({ article, onClose }) {
 // ── NEWS CARDS ────────────────────────────────────────────────────────────────
 function HeroCard({ article, onClick }) {
   const [hov, setHov] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
   const a = article;
   return (
     <div
@@ -427,9 +447,10 @@ function HeroCard({ article, onClick }) {
       className="card-click"
       style={{ cursor: "pointer", position: "relative", overflow: "hidden", background: TH.text }}
     >
-      {a.image_url ? (
+      {a.image_url && !imgErr ? (
         <img
           src={a.image_url} alt={a.headline}
+          onError={() => setImgErr(true)}
           style={{
             width: "100%", height: 480, objectFit: "cover", display: "block",
             transform: hov ? "scale(1.03)" : "scale(1)",
@@ -489,6 +510,7 @@ function HeroCard({ article, onClick }) {
 
 function ArticleCard({ article, onClick, horizontal = false }) {
   const [hov, setHov] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
   const a = article;
 
   if (horizontal) {
@@ -503,10 +525,11 @@ function ArticleCard({ article, onClick, horizontal = false }) {
           borderBottom: `1px solid ${TH.divider}`, alignItems: "flex-start",
         }}
       >
-        {a.image_url && (
+        {a.image_url && !imgErr && (
           <div style={{ width: 80, height: 64, flexShrink: 0, overflow: "hidden" }}>
             <img
               src={a.image_url} alt=""
+              onError={() => setImgErr(true)}
               style={{
                 width: "100%", height: "100%", objectFit: "cover",
                 transform: hov ? "scale(1.05)" : "scale(1)", transition: "transform 0.3s",
@@ -545,9 +568,10 @@ function ArticleCard({ article, onClick, horizontal = false }) {
       }}
     >
       <div style={{ overflow: "hidden", flexShrink: 0 }}>
-        {a.image_url ? (
+        {a.image_url && !imgErr ? (
           <img
             src={a.image_url} alt={a.headline}
+            onError={() => setImgErr(true)}
             style={{
               width: "100%", height: 180, objectFit: "cover", display: "block",
               transform: hov ? "scale(1.04)" : "scale(1)", transition: "transform 0.4s ease",
