@@ -1203,6 +1203,326 @@ function GuidelinesPage() {
   );
 }
 
+// ── SCHOOL PORTAL ─────────────────────────────────────────────────────────────
+const COUNTIES = ["Fairfax County", "Loudoun County", "Washington DC", "Arlington", "Alexandria", "Prince William County", "Montgomery County", "Other"];
+
+function SchoolPortal() {
+  const [view, setView] = useState("login"); // "login" | "register"
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem("school_session") || "null"); } catch { return null; }
+  });
+
+  function doLogout() {
+    sessionStorage.removeItem("school_session");
+    setSession(null);
+  }
+
+  if (session) return <SchoolDashboard school={session} onLogout={doLogout} />;
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "48px 24px" }}>
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🏫</div>
+        <h1 style={{ fontFamily: "Georgia,serif", fontSize: 28, fontWeight: 700, color: TH.text, margin: "0 0 8px" }}>School Portal</h1>
+        <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, margin: 0 }}>
+          Partner with KrynoluxDC to publish your students' stories directly on the DMV's youth news network.
+        </p>
+      </div>
+
+      {/* Tab switcher */}
+      <div style={{ display: "flex", borderBottom: `2px solid ${TH.border}`, marginBottom: 28 }}>
+        {[["login", "Sign In"], ["register", "Apply Now"]].map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            style={{
+              flex: 1, padding: "11px 0", background: "none", border: "none",
+              borderBottom: view === v ? `3px solid ${TH.accent}` : "3px solid transparent",
+              color: view === v ? TH.accent : TH.muted,
+              fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 13,
+              cursor: "pointer", letterSpacing: 0.3,
+              transition: "color 0.15s, border-color 0.15s",
+              marginBottom: -2,
+            }}
+          >{label}</button>
+        ))}
+      </div>
+
+      {view === "login"
+        ? <SchoolLogin onLogin={s => { sessionStorage.setItem("school_session", JSON.stringify(s)); setSession(s); }} />
+        : <SchoolRegister onDone={() => setView("login")} />
+      }
+    </div>
+  );
+}
+
+function SchoolLogin({ onLogin }) {
+  const [email, setEmail]       = useState("");
+  const [pass, setPass]         = useState("");
+  const [err, setErr]           = useState("");
+  const [loading, setLoading]   = useState(false);
+
+  async function submit() {
+    if (!email.includes("@")) { setErr("Enter a valid email."); return; }
+    if (!pass) { setErr("Enter your password."); return; }
+    setLoading(true); setErr("");
+    const { data, error } = await supabase.from("school_accounts").select("*").eq("contact_email", email.trim()).eq("pass", pass).maybeSingle();
+    setLoading(false);
+    if (error || !data) { setErr("Incorrect email or password."); return; }
+    if (data.status === "rejected") { setErr("This account has been rejected. Contact contact@krynolux.work for more info."); return; }
+    onLogin(data);
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>School Email</label>
+        <input type="email" value={email} onChange={e => { setEmail(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="contact@yourschool.edu"
+          style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" }} />
+      </div>
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>Password</label>
+        <input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="Your password"
+          style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" }} />
+      </div>
+      {err && <div style={{ background: "#fdf0f0", borderLeft: `3px solid ${TH.red}`, padding: "10px 14px", marginBottom: 14, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.red }}>{err}</div>}
+      <button onClick={submit} disabled={loading}
+        style={{ width: "100%", padding: "13px", background: TH.accent, border: "none", color: "#fff", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", borderRadius: 3, opacity: loading ? 0.7 : 1 }}>
+        {loading ? "Signing in…" : "Sign In →"}
+      </button>
+    </div>
+  );
+}
+
+function SchoolRegister({ onDone }) {
+  const [form, setForm] = useState({ school_name: "", contact_name: "", contact_email: "", county: "", description: "", pass: "", pass2: "" });
+  const [err, setErr]     = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]   = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  async function submit() {
+    if (!form.school_name.trim()) { setErr("School name is required."); return; }
+    if (!form.contact_name.trim()) { setErr("Contact name is required."); return; }
+    if (!form.contact_email.includes("@")) { setErr("Enter a valid email."); return; }
+    if (!form.county) { setErr("Select your county."); return; }
+    if (form.pass.length < 6) { setErr("Password must be at least 6 characters."); return; }
+    if (form.pass !== form.pass2) { setErr("Passwords don't match."); return; }
+    setLoading(true); setErr("");
+
+    const { error } = await supabase.from("school_accounts").insert([{
+      school_name: form.school_name.trim(),
+      contact_name: form.contact_name.trim(),
+      contact_email: form.contact_email.trim(),
+      county: form.county,
+      description: form.description.trim(),
+      pass: form.pass,
+      status: "pending",
+    }]);
+    if (error) {
+      setLoading(false);
+      setErr(error.code === "23505" ? "That email is already registered." : "Something went wrong. Try again.");
+      return;
+    }
+    await sendEmail({ status: "school_applied", name: form.contact_name.trim(), email: form.contact_email.trim(), school_name: form.school_name.trim() });
+    setLoading(false);
+    setDone(true);
+  }
+
+  if (done) return (
+    <div style={{ background: "#f0faf4", border: `1px solid ${TH.green}40`, borderLeft: `4px solid ${TH.green}`, padding: "24px 28px", borderRadius: 3 }}>
+      <div style={{ fontFamily: "Georgia,serif", fontSize: 20, fontWeight: 700, color: TH.green, marginBottom: 8 }}>✓ Application submitted!</div>
+      <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.sub, lineHeight: 1.7, margin: "0 0 16px" }}>
+        We'll review your application within 48 hours and email you at <strong>{form.contact_email}</strong> with a decision.
+      </p>
+      <button onClick={onDone} style={{ background: TH.accent, border: "none", color: "#fff", padding: "10px 22px", fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 13, cursor: "pointer", borderRadius: 3 }}>
+        Back to Sign In →
+      </button>
+    </div>
+  );
+
+  const inp = { width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box", marginBottom: 0 };
+  const lbl = { fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" };
+  const fld = { marginBottom: 16 };
+
+  return (
+    <div>
+      <div style={fld}>
+        <label style={lbl}>School Name <span style={{ color: TH.red }}>*</span></label>
+        <input type="text" value={form.school_name} onChange={e => { set("school_name", e.target.value); setErr(""); }} placeholder="e.g. Thomas Jefferson High School" style={inp} />
+      </div>
+      <div style={fld}>
+        <label style={lbl}>Your Name (Contact) <span style={{ color: TH.red }}>*</span></label>
+        <input type="text" value={form.contact_name} onChange={e => { set("contact_name", e.target.value); setErr(""); }} placeholder="Full name" style={inp} />
+      </div>
+      <div style={fld}>
+        <label style={lbl}>Contact Email <span style={{ color: TH.red }}>*</span></label>
+        <input type="email" value={form.contact_email} onChange={e => { set("contact_email", e.target.value); setErr(""); }} placeholder="your@school.edu" style={inp} />
+      </div>
+      <div style={fld}>
+        <label style={lbl}>County / Area <span style={{ color: TH.red }}>*</span></label>
+        <select value={form.county} onChange={e => { set("county", e.target.value); setErr(""); }} style={{ ...inp, background: "#fff" }}>
+          <option value="">Select county…</option>
+          {COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+      <div style={fld}>
+        <label style={lbl}>About Your School / Why You Want to Join</label>
+        <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="Tell us about your journalism program or interest…" style={{ ...inp, resize: "vertical" }} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div>
+          <label style={lbl}>Password <span style={{ color: TH.red }}>*</span></label>
+          <input type="password" value={form.pass} onChange={e => { set("pass", e.target.value); setErr(""); }} placeholder="Min. 6 characters" style={inp} />
+        </div>
+        <div>
+          <label style={lbl}>Confirm Password <span style={{ color: TH.red }}>*</span></label>
+          <input type="password" value={form.pass2} onChange={e => { set("pass2", e.target.value); setErr(""); }} placeholder="Repeat password" style={inp} />
+        </div>
+      </div>
+      {err && <div style={{ background: "#fdf0f0", borderLeft: `3px solid ${TH.red}`, padding: "10px 14px", marginBottom: 14, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.red }}>{err}</div>}
+      <button onClick={submit} disabled={loading}
+        style={{ width: "100%", padding: "13px", background: TH.accent, border: "none", color: "#fff", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", borderRadius: 3, opacity: loading ? 0.7 : 1 }}>
+        {loading ? "Submitting…" : "Apply for School Account →"}
+      </button>
+      <p style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, textAlign: "center", marginTop: 14, lineHeight: 1.6 }}>
+        Applications are reviewed within 48 hours. You'll receive a confirmation email after submitting.
+      </p>
+    </div>
+  );
+}
+
+function SchoolDashboard({ school, onLogout }) {
+  const [form, setForm]     = useState({ student_name: "", headline: "", cat: "", body: "" });
+  const [myStories, setMyStories] = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone]     = useState(false);
+  const [err, setErr]       = useState("");
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    supabase.from("submissions").select("*").eq("email", school.contact_email).order("created_at", { ascending: false })
+      .then(({ data }) => { if (data) setMyStories(data); });
+  }, [school.contact_email]);
+
+  if (school.status === "pending") return (
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "48px 24px", textAlign: "center" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+      <h2 style={{ fontFamily: "Georgia,serif", fontSize: 24, color: TH.text, marginBottom: 12 }}>Application Under Review</h2>
+      <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted, lineHeight: 1.7, maxWidth: 380, margin: "0 auto 24px" }}>
+        Your account for <strong>{school.school_name}</strong> is currently pending editorial approval. We'll email you at <strong>{school.contact_email}</strong> within 48 hours.
+      </p>
+      <button onClick={onLogout} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "10px 22px", fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Sign Out</button>
+    </div>
+  );
+
+  async function handleSubmit() {
+    if (!form.student_name.trim()) { setErr("Enter the student's name."); return; }
+    if (!form.headline.trim()) { setErr("Enter a headline."); return; }
+    if (!form.cat) { setErr("Select a category."); return; }
+    if (form.body.trim().split(/\s+/).length < 50) { setErr("Story must be at least 50 words."); return; }
+    setSubmitting(true); setErr("");
+    const refId = "KDC-" + Date.now().toString().slice(-6);
+    const { error } = await supabase.from("submissions").insert([{
+      name: form.student_name.trim(),
+      school: school.school_name,
+      email: school.contact_email,
+      headline: form.headline.trim(),
+      category: form.cat,
+      body: form.body.trim(),
+      status: "pending",
+      ref_id: refId,
+    }]);
+    if (error) { setErr("Submission failed. Try again."); setSubmitting(false); return; }
+    await sendEmail({ status: "received", name: form.student_name.trim(), email: school.contact_email, headline: form.headline.trim() });
+    const { data } = await supabase.from("submissions").select("*").eq("email", school.contact_email).order("created_at", { ascending: false });
+    if (data) setMyStories(data);
+    setForm({ student_name: "", headline: "", cat: "", body: "" });
+    setSubmitting(false);
+    setDone(true);
+    setTimeout(() => setDone(false), 4000);
+  }
+
+  const statusColor = { pending: TH.gold, approved: TH.green, rejected: TH.red };
+
+  return (
+    <div style={{ maxWidth: 860, margin: "0 auto", padding: "36px 24px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 36, paddingBottom: 20, borderBottom: `2px solid ${TH.border}` }}>
+        <div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 4 }}>School Portal</div>
+          <h2 style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, color: TH.text, margin: 0 }}>{school.school_name}</h2>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 4 }}>{school.contact_name} · {school.county}</div>
+        </div>
+        <button onClick={onLogout} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "9px 18px", fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Sign Out</button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 40, alignItems: "start" }} className="main-grid">
+        {/* Submit form */}
+        <div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 20 }}>Submit a Student Story</div>
+          {done && (
+            <div style={{ background: "#f0faf4", borderLeft: `4px solid ${TH.green}`, padding: "14px 18px", marginBottom: 20, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.green, fontWeight: 700 }}>
+              ✓ Story submitted! Our editorial team will review it within 48 hours.
+            </div>
+          )}
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>Student's Name <span style={{ color: TH.red }}>*</span></label>
+            <input type="text" value={form.student_name} onChange={e => { set("student_name", e.target.value); setErr(""); }} placeholder="First and last name"
+              style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>Headline <span style={{ color: TH.red }}>*</span></label>
+            <input type="text" value={form.headline} onChange={e => { set("headline", e.target.value); setErr(""); }} placeholder="Article headline"
+              style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" }} />
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>Category <span style={{ color: TH.red }}>*</span></label>
+            <select value={form.cat} onChange={e => { set("cat", e.target.value); setErr(""); }}
+              style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box", background: "#fff" }}>
+              <option value="">Select a category…</option>
+              {CATS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" }}>Story <span style={{ color: TH.red }}>*</span></label>
+            <textarea value={form.body} onChange={e => { set("body", e.target.value); setErr(""); }} rows={10}
+              placeholder="Write the full article here…"
+              style={{ width: "100%", padding: "11px 14px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Georgia,serif", fontSize: 15, outline: "none", borderRadius: 3, boxSizing: "border-box", resize: "vertical", lineHeight: 1.8 }} />
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>{form.body.trim().split(/\s+/).filter(Boolean).length} words</div>
+          </div>
+          {err && <div style={{ background: "#fdf0f0", borderLeft: `3px solid ${TH.red}`, padding: "10px 14px", marginBottom: 14, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.red }}>{err}</div>}
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{ background: TH.accent, border: "none", color: "#fff", padding: "13px 28px", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: submitting ? "not-allowed" : "pointer", borderRadius: 3, opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? "Submitting…" : "Submit Story →"}
+          </button>
+        </div>
+
+        {/* Past submissions */}
+        <div>
+          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 16 }}>Your Submissions ({myStories.length})</div>
+          {myStories.length === 0
+            ? <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, padding: "20px 0" }}>No submissions yet.</div>
+            : myStories.map(s => (
+              <div key={s.id} style={{ background: TH.card, border: `1px solid ${TH.border}`, borderLeft: `3px solid ${statusColor[s.status] || TH.muted}`, padding: "12px 14px", marginBottom: 8, borderRadius: "0 3px 3px 0" }}>
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 14, fontWeight: 700, color: TH.text, marginBottom: 4, lineHeight: 1.3 }}>{s.headline}</div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: statusColor[s.status] || TH.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.status}</span>
+                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>By {s.name}</span>
+                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>{new Date(s.created_at).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── NEWSLETTER STRIP (full-width, above footer) ───────────────────────────────
 function NewsletterStrip() {
   const [email, setEmail] = useState("");
@@ -1388,6 +1708,7 @@ export default function App() {
     Contact: <ContactPage />,
     Privacy: <PrivacyPage />,
     Guidelines: <GuidelinesPage />,
+    "School Portal": <SchoolPortal />,
   };
 
   return (
@@ -1854,7 +2175,7 @@ export default function App() {
             {/* Legal */}
             <div>
               <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: "rgba(255,255,255,0.35)", marginBottom: 16 }}>Legal</div>
-              {[["Privacy Policy", "Privacy"], ["Editorial Guidelines", "Guidelines"]].map(([label, key]) => (
+              {[["Privacy Policy", "Privacy"], ["Editorial Guidelines", "Guidelines"], ["School Portal", "School Portal"]].map(([label, key]) => (
                 <div
                   key={key}
                   onClick={() => navigate(key)}
