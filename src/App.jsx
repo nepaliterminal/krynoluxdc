@@ -227,7 +227,10 @@ function Navbar({ nav, setNav }) {
                 fontWeight: 700, fontFamily: "Inter,sans-serif",
                 letterSpacing: 0.3,
               }}
-            >Submit a Story</button>
+            >
+              <span className="nav-submit-text">Submit a Story</span>
+              <span className="nav-submit-short" style={{ display: "none" }}>Submit</span>
+            </button>
             {/* Hamburger */}
             <button
               onClick={() => setMenuOpen(m => !m)}
@@ -345,14 +348,17 @@ function ArticleModal({ article, onClose }) {
           boxShadow: "0 24px 80px rgba(0,0,0,0.35)", position: "relative",
         }}
       >
+        {/* Drag handle (visible on mobile bottom-sheet) */}
+        <span className="modal-drag-handle" />
+
         {/* X close button */}
         <button
           onClick={onClose}
           style={{
             position: "absolute", top: 14, right: 14, zIndex: 10,
-            width: 34, height: 34, borderRadius: "50%",
+            width: 40, height: 40, borderRadius: "50%",
             background: "rgba(0,0,0,0.45)", border: "none",
-            color: "#fff", fontSize: 18, lineHeight: 1,
+            color: "#fff", fontSize: 20, lineHeight: 1,
             cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
           }}
           aria-label="Close"
@@ -363,6 +369,7 @@ function ArticleModal({ article, onClose }) {
           <div style={{ position: "relative", overflow: "hidden" }}>
             <img
               src={a.image_url} alt={a.headline}
+              className="modal-card-img"
               style={{ width: "100%", height: 360, objectFit: "cover", display: "block" }}
             />
             <div style={{
@@ -371,33 +378,39 @@ function ArticleModal({ article, onClose }) {
             }} />
           </div>
         ) : (
-          <div style={{
-            width: "100%", height: 80,
-            background: `linear-gradient(135deg, ${CAT_COLOR[a.category] || TH.accent}22, ${TH.bg})`,
-            borderBottom: `3px solid ${CAT_COLOR[a.category] || TH.accent}`,
-          }} />
+          <div
+            className="modal-card-noimg"
+            style={{
+              width: "100%", height: 80,
+              background: `linear-gradient(135deg, ${CAT_COLOR[a.category] || TH.accent}22, ${TH.bg})`,
+              borderBottom: `3px solid ${CAT_COLOR[a.category] || TH.accent}`,
+            }}
+          />
         )}
 
-        <div style={{ padding: "32px 44px 44px" }}>
+        <div className="modal-card-body" style={{ padding: "32px 44px 44px" }}>
           <div style={{ marginBottom: 14 }}>
             <CatBadge cat={a.category || "News"} large />
           </div>
-          <h1 style={{
-            fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700,
-            color: TH.text, lineHeight: 1.2, margin: "0 0 20px",
-          }}>{a.headline || "Untitled"}</h1>
+          <h1
+            className="modal-card-title"
+            style={{
+              fontFamily: "Georgia,serif", fontSize: 30, fontWeight: 700,
+              color: TH.text, lineHeight: 1.2, margin: "0 0 18px",
+            }}
+          >{a.headline || "Untitled"}</h1>
 
           {/* Byline */}
           <div style={{
-            display: "flex", alignItems: "center", gap: 14,
-            paddingBottom: 20, marginBottom: 24,
-            borderBottom: `1px solid ${TH.divider}`,
+            display: "flex", alignItems: "center", gap: 12,
+            paddingBottom: 18, marginBottom: 20,
+            borderBottom: `1px solid ${TH.divider}`, flexWrap: "wrap",
           }}>
             <div style={{
-              width: 40, height: 40, borderRadius: "50%",
+              width: 38, height: 38, borderRadius: "50%",
               background: CAT_COLOR[a.category] || TH.text,
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", fontWeight: 700, fontSize: 14, flexShrink: 0,
+              color: "#fff", fontWeight: 700, fontSize: 13, flexShrink: 0,
               fontFamily: "Georgia,serif",
             }}>{initials}</div>
             <div>
@@ -411,20 +424,23 @@ function ArticleModal({ article, onClose }) {
           </div>
 
           {/* Body */}
-          <div style={{
-            fontFamily: "Georgia,serif", fontSize: 18, color: TH.sub,
-            lineHeight: 1.9, whiteSpace: "pre-wrap",
-          }}>
+          <div
+            className="modal-card-text"
+            style={{
+              fontFamily: "Georgia,serif", fontSize: 18, color: TH.sub,
+              lineHeight: 1.9, whiteSpace: "pre-wrap",
+            }}
+          >
             {a.body || "No content available."}
           </div>
 
-          <div style={{ marginTop: 36, paddingTop: 20, borderTop: `1px solid ${TH.divider}`, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 32, paddingTop: 18, borderTop: `1px solid ${TH.divider}`, display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={onClose}
               style={{
                 background: "none", border: `1px solid ${TH.border}`,
-                padding: "9px 22px", color: TH.muted, cursor: "pointer",
-                fontSize: 13, fontFamily: "Inter,sans-serif",
+                padding: "11px 22px", color: TH.muted, cursor: "pointer",
+                fontSize: 14, fontFamily: "Inter,sans-serif", flex: 1, minWidth: 80,
               }}
             >← Back</button>
             <button
@@ -440,8 +456,8 @@ function ArticleModal({ article, onClose }) {
               }}
               style={{
                 background: TH.accent, border: "none",
-                padding: "9px 22px", color: "#fff", cursor: "pointer",
-                fontSize: 13, fontFamily: "Inter,sans-serif", fontWeight: 700,
+                padding: "11px 22px", color: "#fff", cursor: "pointer",
+                fontSize: 14, fontFamily: "Inter,sans-serif", fontWeight: 700, flex: 1,
               }}
             >Share ↗</button>
           </div>
@@ -468,6 +484,7 @@ function HeroCard({ article, onClick }) {
         <img
           src={a.image_url} alt={a.headline}
           onError={() => setImgErr(true)}
+          className="hero-card-img"
           style={{
             width: "100%", height: 480, objectFit: "cover", display: "block",
             transform: hov ? "scale(1.03)" : "scale(1)",
@@ -475,7 +492,7 @@ function HeroCard({ article, onClick }) {
           }}
         />
       ) : (
-        <div style={{
+        <div className="hero-card-img" style={{
           width: "100%", height: 480, background: `linear-gradient(135deg, #1a1a2e, #16213e)`,
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
@@ -487,7 +504,7 @@ function HeroCard({ article, onClick }) {
         position: "absolute", inset: 0,
         background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.3) 55%, transparent 100%)",
       }} />
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "36px 36px 32px" }}>
+      <div className="hero-card-overlay" style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "36px 36px 32px" }}>
         <div style={{ marginBottom: 10 }}>
           <span style={{
             background: CAT_COLOR[a.category] || TH.accent,
@@ -504,7 +521,7 @@ function HeroCard({ article, onClick }) {
           textDecorationColor: "rgba(255,255,255,0.5)",
         }}>{a.headline || "Untitled"}</h2>
         {a.body && (
-          <p style={{
+          <p className="hero-card-excerpt" style={{
             fontFamily: "Georgia,serif", fontSize: 15, color: "rgba(255,255,255,0.75)",
             lineHeight: 1.6, margin: "0 0 14px", maxWidth: 560,
           }}>{a.body.slice(0, 160)}…</p>
@@ -908,7 +925,7 @@ function SubmitPage({ setNav }) {
         })}
       </div>
 
-      <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "32px 36px" }}>
+      <div className="submit-step" style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "32px 36px" }}>
         {/* Step 1 */}
         {step === 1 && (
           <div>
@@ -1041,7 +1058,7 @@ function SubmitPage({ setNav }) {
 // ── STATIC PAGES ──────────────────────────────────────────────────────────────
 function StaticPage({ section, title, children }) {
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto", padding: "52px 24px 80px" }}>
+    <div className="static-page-inner" style={{ maxWidth: 760, margin: "0 auto", padding: "52px 24px 80px" }}>
       <div style={{ marginBottom: 32, paddingBottom: 20, borderBottom: `2px solid ${TH.text}` }}>
         <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 10 }}>
           {section}
@@ -1372,7 +1389,7 @@ function SchoolRegister({ onDone }) {
         <label style={lbl}>About Your School / Why You Want to Join</label>
         <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} placeholder="Tell us about your journalism program or interest…" style={{ ...inp, resize: "vertical" }} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+      <div className="pw-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
         <div>
           <label style={lbl}>Password <span style={{ color: TH.red }}>*</span></label>
           <input type="password" value={form.pass} onChange={e => { set("pass", e.target.value); setErr(""); }} placeholder="Min. 6 characters" style={inp} />
@@ -1559,7 +1576,7 @@ function NewsletterStrip() {
         ) : status === "exists" ? (
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "rgba(255,255,255,0.85)" }}>✓ That email is already subscribed!</div>
         ) : (
-          <div style={{ display: "flex", gap: 0, maxWidth: 460, margin: "0 auto", borderRadius: 3, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
+          <div className="nl-input-row" style={{ display: "flex", gap: 0, maxWidth: 460, margin: "0 auto", borderRadius: 3, overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.2)" }}>
             <input
               type="email"
               value={email}
@@ -1821,45 +1838,39 @@ export default function App() {
           from { opacity: 0; transform: translateY(18px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .page-enter {
-          animation: pageEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
+        .page-enter { animation: pageEnter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-        /* ── Modal animations ── */
-        @keyframes backdropIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
+        /* ── Modal animations (desktop) ── */
+        @keyframes backdropIn  { from { opacity: 0; } to { opacity: 1; } }
         @keyframes modalSlideIn {
           from { opacity: 0; transform: translateY(32px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes modalSlideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
         .modal-backdrop { animation: backdropIn 0.25s ease both; }
         .modal-card     { animation: modalSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-        /* ── Button press ── */
+        /* ── Buttons ── */
         button {
           transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
         }
-        button:active {
-          transform: scale(0.94) !important;
-          opacity: 0.85;
-        }
+        button:active { transform: scale(0.94) !important; opacity: 0.85; }
 
-        /* ── Clickable card press ── */
-        .card-click {
-          transition: box-shadow 0.22s ease, transform 0.22s ease;
-        }
-        .card-click:active {
-          transform: scale(0.97) !important;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.08) !important;
-        }
+        /* ── Cards ── */
+        .card-click { transition: box-shadow 0.22s ease, transform 0.22s ease; }
+        .card-click:active { transform: scale(0.97) !important; box-shadow: 0 1px 6px rgba(0,0,0,0.08) !important; }
 
-        /* ── Nav link press ── */
-        .nav-link { transition: color 0.15s, border-color 0.15s; }
+        /* ── Nav ── */
+        .nav-link { transition: color 0.15s, border-color 0.15s; -webkit-tap-highlight-color: transparent; }
         .nav-link:active { opacity: 0.6; }
 
-        /* ── Input focus glow ── */
+        /* ── Inputs ── */
+        input, textarea, select { font-size: 16px; } /* prevents iOS zoom on focus */
         input:focus, textarea:focus, select:focus {
           outline: none;
           border-color: ${TH.accent} !important;
@@ -1873,7 +1884,7 @@ export default function App() {
           100% { background-position: -200% 0; }
         }
 
-        /* ── Scrollbar ── */
+        /* ── Scrollbar (desktop only) ── */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: ${TH.bg}; }
         ::-webkit-scrollbar-thumb { background: ${TH.border}; border-radius: 3px; }
@@ -1904,13 +1915,87 @@ export default function App() {
         .date-desktop { display: block; }
 
         @media (max-width: 960px) {
-          .main-grid { grid-template-columns: 1fr; gap: 32px; }
-          .sidebar   { position: static !important; }
-          .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+          .main-grid    { grid-template-columns: 1fr; gap: 32px; }
+          .sidebar      { position: static !important; }
+          .footer-grid  { grid-template-columns: 1fr 1fr; gap: 28px; }
         }
-        @media (max-width: 600px) {
-          .footer-grid { grid-template-columns: 1fr; gap: 20px; }
+
+        /* ── MOBILE ─────────────────────────────────────────────────── */
+        @media (max-width: 640px) {
+
+          /* Safe area for notch / home indicator */
+          body { padding-bottom: env(safe-area-inset-bottom); }
+
+          /* Article modal → bottom sheet */
+          .modal-backdrop {
+            padding: 0 !important;
+            align-items: flex-end !important;
+            overflow-y: unset !important;
+          }
+          .modal-card {
+            border-radius: 20px 20px 0 0 !important;
+            max-height: 91vh;
+            overflow-y: auto;
+            animation: modalSlideUp 0.38s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .modal-drag-handle {
+            width: 40px; height: 4px;
+            background: rgba(0,0,0,0.15); border-radius: 2px;
+            margin: 12px auto 0; display: block;
+          }
+          .modal-card-body  { padding: 18px 18px 36px !important; }
+          .modal-card-title { font-size: 22px !important; line-height: 1.25 !important; }
+          .modal-card-img   { height: 220px !important; }
+          .modal-card-text  { font-size: 16px !important; line-height: 1.85 !important; }
+          .modal-card-noimg { height: 56px !important; }
+
+          /* Hero card */
+          .hero-card-img     { height: 300px !important; }
+          .hero-card-overlay { padding: 20px 18px 22px !important; }
+          .hero-card-excerpt { display: none !important; }
+
+          /* Main container tighter padding */
+          .main-content { padding-left: 14px !important; padding-right: 14px !important; padding-bottom: 56px !important; }
+
+          /* Home hero banner */
+          .home-hero    { padding: 24px 0 18px !important; }
+          .home-hero h1 { font-size: clamp(28px, 8vw, 42px) !important; letter-spacing: -0.5px !important; }
+          .home-hero p  { font-size: 14px !important; margin-bottom: 18px !important; }
+
+          /* Section header */
+          .section-head h1 { font-size: 26px !important; }
+
+          /* Newsletter strip input row stacks */
+          .nl-input-row { flex-direction: column !important; border-radius: 8px !important; }
+          .nl-input-row input  { border-radius: 8px 8px 0 0 !important; }
+          .nl-input-row button { border-radius: 0 0 8px 8px !important; padding: 14px !important; }
+
+          /* Footer */
+          .footer-grid  { grid-template-columns: 1fr; gap: 20px; }
           .date-desktop { display: none; }
+          .footer-inner { padding: 36px 16px 24px !important; }
+
+          /* Back to top */
+          .back-to-top {
+            bottom: calc(24px + env(safe-area-inset-bottom)) !important;
+            right: 16px !important;
+            width: 44px !important; height: 44px !important;
+          }
+
+          /* Nav submit button shorter on very small screens */
+          .nav-submit-text { display: none; }
+          .nav-submit-short { display: inline !important; }
+
+          /* Submit page steps tighter */
+          .submit-step { padding: 20px 18px 28px !important; }
+          .pw-grid { grid-template-columns: 1fr !important; }
+
+          /* Static pages */
+          .static-page-inner { padding: 28px 16px 60px !important; }
+
+          /* Search bar full width */
+          .search-outer { max-width: 100% !important; }
         }
       `}</style>
 
@@ -1921,11 +2006,11 @@ export default function App() {
       {staticPages[nav] ? (
         <div key={pageKey} className="page-enter">{staticPages[nav]}</div>
       ) : (
-        <main key={pageKey} className="page-enter" style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
+        <main key={pageKey} className="page-enter main-content" style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
 
           {/* Home hero banner */}
           {nav === "Home" && (
-            <div style={{
+            <div className="home-hero" style={{
               textAlign: "center", padding: "44px 24px 32px",
               borderBottom: `3px solid ${TH.text}`, marginBottom: 36,
             }}>
@@ -1965,7 +2050,7 @@ export default function App() {
 
           {/* Section header (non-home) */}
           {nav !== "Home" && (
-            <div style={{
+            <div className="section-head" style={{
               padding: "36px 0 22px",
               borderBottom: `3px solid ${CAT_COLOR[nav] || TH.text}`,
               marginBottom: 32,
@@ -1984,7 +2069,7 @@ export default function App() {
 
           {/* Search bar */}
           <div style={{ marginBottom: 28 }}>
-            <div style={{ position: "relative", maxWidth: 480 }}>
+            <div className="search-outer" style={{ position: "relative", maxWidth: 480 }}>
               <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: TH.muted, fontSize: 15, pointerEvents: "none" }}>⌕</span>
               <input
                 value={search}
@@ -2224,7 +2309,7 @@ export default function App() {
       <NewsletterStrip />
 
       {/* Footer */}
-      <footer style={{ background: "#0f0f0f", color: "#fff", padding: "52px 24px 32px" }}>
+      <footer className="footer-inner" style={{ background: "#0f0f0f", color: "#fff", padding: "52px 24px 32px" }}>
         <div style={{ maxWidth: 1240, margin: "0 auto" }}>
           <div className="footer-grid">
             {/* Brand */}
@@ -2301,6 +2386,7 @@ export default function App() {
       {showTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="back-to-top"
           style={{
             position: "fixed", bottom: 28, right: 24, zIndex: 500,
             width: 44, height: 44, borderRadius: "50%",
