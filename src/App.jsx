@@ -1074,6 +1074,39 @@ function StaticPage({ section, title, children }) {
   );
 }
 
+function NotFoundPage({ setNav }) {
+  return (
+    <div className="static-page-inner" style={{ maxWidth: 760, margin: "0 auto", padding: "80px 24px 100px", textAlign: "center" }}>
+      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 120, fontWeight: 900, color: TH.accent, lineHeight: 1, marginBottom: 8, letterSpacing: -4 }}>404</div>
+      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: TH.muted, marginBottom: 28 }}>Page Not Found</div>
+      <h1 style={{ fontFamily: "Georgia,serif", fontSize: 28, fontWeight: 700, color: TH.text, margin: "0 0 16px" }}>
+        We couldn't find that page.
+      </h1>
+      <p style={{ fontFamily: "Georgia,serif", fontSize: 17, color: TH.sub, lineHeight: 1.85, maxWidth: 480, margin: "0 auto 40px" }}>
+        The page you're looking for might have been moved, deleted, or never existed. Check the URL or head back to the homepage.
+      </p>
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+        <button
+          onClick={() => setNav("Home")}
+          style={{ background: TH.accent, color: "#fff", border: "none", borderRadius: 4, padding: "12px 28px", fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 14, cursor: "pointer", letterSpacing: 0.3 }}
+        >← Back to Home</button>
+        <button
+          onClick={() => setNav("Contact")}
+          style={{ background: "none", color: TH.text, border: `1.5px solid ${TH.border}`, borderRadius: 4, padding: "12px 28px", fontFamily: "Inter,sans-serif", fontWeight: 600, fontSize: 14, cursor: "pointer" }}
+        >Contact Us</button>
+      </div>
+      <div style={{ marginTop: 60, paddingTop: 32, borderTop: `1px solid ${TH.divider}` }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", color: TH.muted, marginBottom: 16 }}>Quick Links</div>
+        <div style={{ display: "flex", gap: 20, justifyContent: "center", flexWrap: "wrap" }}>
+          {["Local News", "Schools", "Sports", "Events", "Submit"].map(p => (
+            <button key={p} onClick={() => setNav(p)} style={{ background: "none", border: "none", fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.accent, cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>{p}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AboutPage() {
   return (
     <StaticPage section="About Us" title="About KrynoluxDC">
@@ -1929,11 +1962,16 @@ function SchoolSubdomainPage({ slug }) {
   );
 
   if (notFound) return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: TH.bg, flexDirection: "column", gap: 16, padding: 24 }}>
-      <div style={{ fontSize: 48 }}>🏫</div>
-      <div style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, color: TH.text }}>School not found</div>
-      <div style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: TH.muted }}>This school page doesn't exist or hasn't been approved yet.</div>
-      <a href="https://krynolux.work" style={{ color: TH.accent, fontFamily: "Inter,sans-serif", fontSize: 14 }}>← Back to KrynoluxDC</a>
+    <div style={{ minHeight: "100vh", background: TH.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ textAlign: "center", maxWidth: 480 }}>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 100, fontWeight: 900, color: TH.accent, lineHeight: 1, letterSpacing: -4, marginBottom: 8 }}>404</div>
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: TH.muted, marginBottom: 24 }}>School Not Found</div>
+        <h1 style={{ fontFamily: "Georgia,serif", fontSize: 26, fontWeight: 700, color: TH.text, margin: "0 0 14px" }}>This school page doesn't exist.</h1>
+        <p style={{ fontFamily: "Georgia,serif", fontSize: 16, color: TH.sub, lineHeight: 1.85, marginBottom: 36 }}>
+          The school you're looking for hasn't been approved yet or the URL might be wrong.
+        </p>
+        <a href="https://krynolux.work" style={{ display: "inline-block", background: TH.accent, color: "#fff", textDecoration: "none", borderRadius: 4, padding: "12px 28px", fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 14 }}>← Back to KrynoluxDC</a>
+      </div>
     </div>
   );
 
@@ -2264,6 +2302,8 @@ export default function App() {
 
       {staticPages[nav] ? (
         <div key={pageKey} className="page-enter">{staticPages[nav]}</div>
+      ) : !NAV_ITEMS.includes(nav) ? (
+        <div key={pageKey} className="page-enter"><NotFoundPage setNav={navigate} /></div>
       ) : (
         <main key={pageKey} className="page-enter main-content" style={{ maxWidth: 1240, margin: "0 auto", padding: "0 24px 80px" }}>
 
