@@ -1772,11 +1772,10 @@ function SchoolSubdomainPage({ slug }) {
 
 // ── MAIN APP ──────────────────────────────────────────────────────────────────
 export default function App() {
-  // Detect subdomain — render school page instead of main site if found
+  // Detect /school/:slug path — render school page instead of main site if found
   const schoolSlug = (() => {
-    const parts = window.location.hostname.split(".");
-    if (parts.length >= 3 && parts[0] !== "www") return parts[0];
-    return null;
+    const match = window.location.pathname.match(/^\/school\/([^/]+)/);
+    return match ? match[1] : null;
   })();
   if (schoolSlug) return <SchoolSubdomainPage slug={schoolSlug} />;
 
