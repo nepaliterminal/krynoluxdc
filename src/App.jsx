@@ -1411,14 +1411,25 @@ function SchoolRegister({ onDone }) {
   );
 }
 
-function SchoolDashboard({ school, onLogout }) {
+const DESIGN_COLORS = ["#7B2FFF","#c0392b","#1a6faf","#1e7e34","#d35400","#7d3c98","#2c3e50","#b7950b","#e91e63","#00bcd4"];
+
+function SchoolDashboard({ school: initialSchool, onLogout }) {
+  const [school, setSchool] = useState(initialSchool);
+  const [tab, setTab]       = useState("submit"); // "submit" | "design" | "stories"
   const [form, setForm]     = useState({ student_name: "", headline: "", cat: "", body: "" });
   const [myStories, setMyStories] = useState([]);
-  const [loading, setLoading]   = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone]     = useState(false);
   const [err, setErr]       = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const [design, setDesign] = useState(() => {
+    const d = initialSchool.design || {};
+    return { accentColor: d.accentColor || TH.accent, logoUrl: d.logoUrl || "", bannerUrl: d.bannerUrl || "", tagline: d.tagline || "", instagram: d.instagram || "", twitter: d.twitter || "", website: d.website || "" };
+  });
+  const [designSaving, setDesignSaving] = useState(false);
+  const [designSaved, setDesignSaved]   = useState(false);
+  const setD = (k, v) => setDesign(d => ({ ...d, [k]: v }));
 
   useEffect(() => {
     supabase.from("submissions").select("*").eq("email", school.contact_email).order("created_at", { ascending: false })
@@ -1435,6 +1446,15 @@ function SchoolDashboard({ school, onLogout }) {
       <button onClick={onLogout} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "10px 22px", fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Sign Out</button>
     </div>
   );
+
+  async function saveDesign() {
+    setDesignSaving(true);
+    await supabase.from("school_accounts").update({ design }).eq("id", school.id);
+    setSchool(s => ({ ...s, design }));
+    setDesignSaving(false);
+    setDesignSaved(true);
+    setTimeout(() => setDesignSaved(false), 3000);
+  }
 
   async function handleSubmit() {
     if (!form.student_name.trim()) { setErr("Enter the student's name."); return; }
@@ -1464,22 +1484,50 @@ function SchoolDashboard({ school, onLogout }) {
   }
 
   const statusColor = { pending: TH.gold, approved: TH.green, rejected: TH.red };
+  const DSP = { fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" };
+  const DINP = { width: "100%", padding: "10px 13px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" };
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", padding: "36px 24px" }}>
+    <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 24px" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 36, paddingBottom: 20, borderBottom: `2px solid ${TH.border}` }}>
-        <div>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 4 }}>School Portal</div>
-          <h2 style={{ fontFamily: "Georgia,serif", fontSize: 24, fontWeight: 700, color: TH.text, margin: 0 }}>{school.school_name}</h2>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 4 }}>{school.contact_name} · {school.county}</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 28, paddingBottom: 20, borderBottom: `2px solid ${TH.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {design.logoUrl
+            ? <img src={design.logoUrl} alt="" style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: `2px solid ${design.accentColor}` }} />
+            : <div style={{ width: 44, height: 44, borderRadius: "50%", background: design.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 18, color: "#fff" }}>{school.school_name[0]}</div>
+          }
+          <div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.5, textTransform: "uppercase", color: TH.accent, marginBottom: 2 }}>School Portal</div>
+            <h2 style={{ fontFamily: "Georgia,serif", fontSize: 22, fontWeight: 700, color: TH.text, margin: 0 }}>{school.school_name}</h2>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, marginTop: 2 }}>{school.contact_name} · {school.county}</div>
+          </div>
         </div>
-        <button onClick={onLogout} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "9px 18px", fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Sign Out</button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {school.subdomain && <a href={`/school/${school.subdomain}`} target="_blank" rel="noreferrer" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.accent, textDecoration: "none" }}>↗ View Page</a>}
+          <button onClick={onLogout} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "9px 18px", fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Sign Out</button>
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 40, alignItems: "start" }} className="main-grid">
-        {/* Submit form */}
+      {/* Tab switcher */}
+      <div style={{ display: "flex", borderBottom: `2px solid ${TH.border}`, marginBottom: 28, gap: 0 }}>
+        {[["submit", "Submit Story"], ["design", "Design Your Page"], ["stories", `My Stories (${myStories.length})`]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            padding: "10px 20px", background: "none", border: "none",
+            borderBottom: tab === id ? `3px solid ${TH.accent}` : "3px solid transparent",
+            color: tab === id ? TH.accent : TH.muted, cursor: "pointer",
+            fontFamily: "Inter,sans-serif", fontWeight: 700, fontSize: 12,
+            letterSpacing: 0.3, textTransform: "uppercase", marginBottom: -2,
+            transition: "color 0.15s, border-color 0.15s",
+          }}>{label}</button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 36, alignItems: "start" }} className="main-grid">
+        {/* Left column — tab content */}
         <div>
+
+        {/* ── SUBMIT TAB ── */}
+        {tab === "submit" && <>
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 20 }}>Submit a Student Story</div>
           {done && (
             <div style={{ background: "#f0faf4", borderLeft: `4px solid ${TH.green}`, padding: "14px 18px", marginBottom: 20, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.green, fontWeight: 700 }}>
@@ -1516,24 +1564,138 @@ function SchoolDashboard({ school, onLogout }) {
             style={{ background: TH.accent, border: "none", color: "#fff", padding: "13px 28px", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: submitting ? "not-allowed" : "pointer", borderRadius: 3, opacity: submitting ? 0.7 : 1 }}>
             {submitting ? "Submitting…" : "Submit Story →"}
           </button>
+        </>}
+
+        {/* ── DESIGN TAB ── */}
+        {tab === "design" && (
+          <div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 20 }}>Design Your Page</div>
+
+            {/* Live preview strip */}
+            <div style={{ borderRadius: 6, overflow: "hidden", marginBottom: 28, boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}>
+              <div style={{
+                background: design.bannerUrl ? `url(${design.bannerUrl}) center/cover` : `linear-gradient(135deg, #1a1a2e, ${design.accentColor}cc)`,
+                padding: "32px 24px 24px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                  {design.logoUrl
+                    ? <img src={design.logoUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: `3px solid ${design.accentColor}` }} onError={e => e.target.style.display="none"} />
+                    : <div style={{ width: 48, height: 48, borderRadius: "50%", background: design.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 22, color: "#fff" }}>{school.school_name[0]}</div>
+                  }
+                  <div>
+                    <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: "#fff" }}>{school.school_name}</div>
+                    {design.tagline && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 3 }}>{design.tagline}</div>}
+                  </div>
+                </div>
+                <div style={{ display: "inline-block", background: design.accentColor, color: "#fff", fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 3, letterSpacing: 1 }}>Student Journalism</div>
+              </div>
+              <div style={{ background: TH.bg, padding: "10px 16px", fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>↑ Live preview of your school page header</div>
+            </div>
+
+            {/* Accent color */}
+            <div style={{ marginBottom: 22 }}>
+              <label style={DSP}>Accent Color</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                {DESIGN_COLORS.map(c => (
+                  <button key={c} onClick={() => setD("accentColor", c)} style={{
+                    width: 30, height: 30, borderRadius: "50%", background: c, border: design.accentColor === c ? `3px solid ${TH.text}` : "3px solid transparent",
+                    cursor: "pointer", flexShrink: 0, boxShadow: design.accentColor === c ? "0 0 0 2px #fff, 0 0 0 4px " + TH.text : "none",
+                    transition: "box-shadow 0.15s",
+                  }} />
+                ))}
+                <input type="color" value={design.accentColor} onChange={e => setD("accentColor", e.target.value)}
+                  style={{ width: 30, height: 30, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0, background: "none" }}
+                  title="Custom color" />
+              </div>
+            </div>
+
+            {/* Logo URL */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={DSP}>School Logo URL</label>
+              <input type="url" value={design.logoUrl} onChange={e => setD("logoUrl", e.target.value)}
+                placeholder="https://yourschool.edu/logo.png" style={DINP} />
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Paste a direct link to your school logo (PNG or JPG). Shown as a circle.</div>
+            </div>
+
+            {/* Banner URL */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={DSP}>Hero Banner Image URL</label>
+              <input type="url" value={design.bannerUrl} onChange={e => setD("bannerUrl", e.target.value)}
+                placeholder="https://yourschool.edu/banner.jpg" style={DINP} />
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Background image for the top of your page. Wide landscape images work best.</div>
+            </div>
+
+            {/* Tagline */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={DSP}>School Tagline</label>
+              <input type="text" value={design.tagline} onChange={e => setD("tagline", e.target.value)}
+                placeholder="e.g. Where student voices are heard" maxLength={80} style={DINP} />
+            </div>
+
+            {/* Social links */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={DSP}>Instagram</label>
+              <input type="text" value={design.instagram} onChange={e => setD("instagram", e.target.value)}
+                placeholder="@yourschool" style={DINP} />
+            </div>
+            <div style={{ marginBottom: 18 }}>
+              <label style={DSP}>Twitter / X</label>
+              <input type="text" value={design.twitter} onChange={e => setD("twitter", e.target.value)}
+                placeholder="@yourschool" style={DINP} />
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={DSP}>School Website</label>
+              <input type="url" value={design.website} onChange={e => setD("website", e.target.value)}
+                placeholder="https://yourschool.edu" style={DINP} />
+            </div>
+
+            {designSaved && <div style={{ background: "#f0faf4", borderLeft: `3px solid ${TH.green}`, padding: "10px 14px", marginBottom: 14, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.green, fontWeight: 700 }}>✓ Design saved!</div>}
+            <button onClick={saveDesign} disabled={designSaving}
+              style={{ background: TH.accent, border: "none", color: "#fff", padding: "13px 28px", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: designSaving ? "not-allowed" : "pointer", borderRadius: 3, opacity: designSaving ? 0.7 : 1 }}>
+              {designSaving ? "Saving…" : "Save Design →"}
+            </button>
+          </div>
+        )}
+
+        {/* ── STORIES TAB ── */}
+        {tab === "stories" && (
+          <div>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 16 }}>Your Submissions</div>
+            {myStories.length === 0
+              ? <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, padding: "20px 0" }}>No submissions yet. Use the Submit Story tab to send your first story.</div>
+              : myStories.map(s => (
+                <div key={s.id} style={{ background: TH.card, border: `1px solid ${TH.border}`, borderLeft: `3px solid ${statusColor[s.status] || TH.muted}`, padding: "14px 18px", marginBottom: 8, borderRadius: "0 3px 3px 0" }}>
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 14, fontWeight: 700, color: TH.text, marginBottom: 6, lineHeight: 1.3 }}>{s.headline}</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: statusColor[s.status] || TH.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.status}</span>
+                    <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>By {s.name}</span>
+                    <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>{new Date(s.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        )}
         </div>
 
-        {/* Past submissions */}
+        {/* Right sidebar — quick stats */}
         <div>
-          <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 16 }}>Your Submissions ({myStories.length})</div>
-          {myStories.length === 0
-            ? <div style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, padding: "20px 0" }}>No submissions yet.</div>
-            : myStories.map(s => (
-              <div key={s.id} style={{ background: TH.card, border: `1px solid ${TH.border}`, borderLeft: `3px solid ${statusColor[s.status] || TH.muted}`, padding: "12px 14px", marginBottom: 8, borderRadius: "0 3px 3px 0" }}>
-                <div style={{ fontFamily: "Georgia,serif", fontSize: 14, fontWeight: 700, color: TH.text, marginBottom: 4, lineHeight: 1.3 }}>{s.headline}</div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: statusColor[s.status] || TH.muted, textTransform: "uppercase", letterSpacing: 0.5 }}>{s.status}</span>
-                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>By {s.name}</span>
-                  <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>{new Date(s.created_at).toLocaleDateString()}</span>
-                </div>
+          <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "18px 20px", marginBottom: 16 }}>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 14 }}>Quick Stats</div>
+            {[["Total Submitted", myStories.length], ["Approved", myStories.filter(s => s.status === "approved").length], ["Pending", myStories.filter(s => s.status === "pending").length]].map(([label, val]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${TH.divider}`, fontFamily: "Inter,sans-serif" }}>
+                <span style={{ fontSize: 12, color: TH.muted }}>{label}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: TH.text }}>{val}</span>
               </div>
-            ))
-          }
+            ))}
+          </div>
+          <div style={{ background: TH.card, border: `1px solid ${TH.border}`, padding: "16px 20px" }}>
+            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 10 }}>Your Page</div>
+            {school.subdomain
+              ? <a href={`/school/${school.subdomain}`} target="_blank" rel="noreferrer" style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.accent, wordBreak: "break-all" }}>↗ krynolux.work/school/{school.subdomain}</a>
+              : <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, lineHeight: 1.6 }}>Your public page will appear here once an admin assigns your school a URL slug.</div>
+            }
+          </div>
         </div>
       </div>
     </div>
@@ -1714,33 +1876,61 @@ function SchoolSubdomainPage({ slug }) {
     </div>
   );
 
+  const d = school.design || {};
+  const accent  = d.accentColor || TH.accent;
+  const tagline = d.tagline || "";
+  const hasLogo = !!d.logoUrl;
+  const hasBanner = !!d.bannerUrl;
+  const socials = [
+    d.instagram && { label: "Instagram", handle: d.instagram, href: `https://instagram.com/${d.instagram.replace(/^@/, "")}` },
+    d.twitter   && { label: "Twitter/X",  handle: d.twitter,   href: `https://x.com/${d.twitter.replace(/^@/, "")}` },
+    d.website   && { label: "Website",    handle: d.website,   href: d.website },
+  ].filter(Boolean);
+
   return (
     <div style={{ background: TH.bg, minHeight: "100vh" }}>
       <style>{`* { box-sizing: border-box; } body { margin: 0; }`}</style>
       <ArticleModal article={selected} onClose={() => setSelected(null)} />
 
-      {/* School header */}
-      <div style={{ background: "#0f0f0f", padding: "0 0 0", borderBottom: `3px solid ${TH.accent}` }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: `linear-gradient(135deg, ${TH.accent}, #3b82f6)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 20, color: "#fff" }}>
-              {school.school_name[0]}
-            </div>
+      {/* Top nav bar */}
+      <div style={{ background: "#0f0f0f", borderBottom: `3px solid ${accent}` }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "14px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {hasLogo
+              ? <img src={d.logoUrl} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: `2px solid ${accent}` }} />
+              : <div style={{ width: 40, height: 40, borderRadius: "50%", background: `linear-gradient(135deg, ${accent}, #3b82f6)`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 18, color: "#fff" }}>{school.school_name[0]}</div>
+            }
             <div>
-              <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: "#fff", lineHeight: 1 }}>{school.school_name}</div>
-              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4, letterSpacing: 0.5 }}>{school.county} · Powered by <a href="https://krynolux.work" style={{ color: TH.accent, textDecoration: "none" }}>KrynoluxDC</a></div>
+              <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 18, color: "#fff", lineHeight: 1 }}>{school.school_name}</div>
+              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(255,255,255,0.4)", marginTop: 3 }}>{school.county} · Powered by <a href="https://krynolux.work" style={{ color: accent, textDecoration: "none" }}>KrynoluxDC</a></div>
             </div>
           </div>
-          <a href="https://krynolux.work" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.45)", textDecoration: "none" }}>← KrynoluxDC</a>
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            {socials.map(s => (
+              <a key={s.label} href={s.href} target="_blank" rel="noreferrer"
+                style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}
+              >{s.handle}</a>
+            ))}
+            <a href="https://krynolux.work" style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.35)", textDecoration: "none" }}>← KrynoluxDC</a>
+          </div>
         </div>
       </div>
 
       {/* Hero band */}
-      <div style={{ background: `linear-gradient(135deg, #1a1a2e, ${TH.accent}cc)`, padding: "48px 24px 40px" }}>
+      <div style={{
+        background: hasBanner
+          ? `linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.7)), url(${d.bannerUrl}) center/cover no-repeat`
+          : `linear-gradient(135deg, #1a1a2e, ${accent}cc)`,
+        padding: "56px 24px 44px",
+      }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.5)", marginBottom: 12 }}>Student Journalism</div>
-          <h1 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(28px,5vw,52px)", fontWeight: 700, color: "#fff", margin: "0 0 12px", lineHeight: 1.1 }}>{school.school_name} News</h1>
-          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>
+          {hasLogo && (
+            <img src={d.logoUrl} alt="" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: `3px solid ${accent}`, marginBottom: 16, display: "block" }} />
+          )}
+          <h1 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(28px,5vw,52px)", fontWeight: 700, color: "#fff", margin: "0 0 10px", lineHeight: 1.1 }}>{school.school_name} News</h1>
+          {tagline && <p style={{ fontFamily: "Georgia,serif", fontSize: 16, color: "rgba(255,255,255,0.75)", margin: "0 0 12px", fontStyle: "italic" }}>{tagline}</p>}
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "rgba(255,255,255,0.55)", margin: 0 }}>
             {stories.length} published {stories.length === 1 ? "story" : "stories"} · {school.county}
           </p>
         </div>
@@ -1761,9 +1951,18 @@ function SchoolSubdomainPage({ slug }) {
       </div>
 
       {/* Footer */}
-      <div style={{ background: "#0f0f0f", padding: "24px", textAlign: "center" }}>
-        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
-          Part of the <a href="https://krynolux.work" style={{ color: TH.accent, textDecoration: "none" }}>KrynoluxDC</a> youth journalism network · {school.county}
+      <div style={{ background: "#0f0f0f", padding: "28px 24px", textAlign: "center" }}>
+        {socials.length > 0 && (
+          <div style={{ display: "flex", justifyContent: "center", gap: 24, marginBottom: 14, flexWrap: "wrap" }}>
+            {socials.map(s => (
+              <a key={s.label} href={s.href} target="_blank" rel="noreferrer"
+                style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", textDecoration: "none" }}
+              >{s.label}: {s.handle}</a>
+            ))}
+          </div>
+        )}
+        <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+          Part of the <a href="https://krynolux.work" style={{ color: accent, textDecoration: "none" }}>KrynoluxDC</a> youth journalism network · {school.county}
         </div>
       </div>
     </div>
