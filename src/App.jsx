@@ -1486,6 +1486,8 @@ function SchoolDashboard({ school: initialSchool, onLogout }) {
   const statusColor = { pending: TH.gold, approved: TH.green, rejected: TH.red };
   const DSP = { fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, color: TH.muted, display: "block", marginBottom: 6, letterSpacing: 0.8, textTransform: "uppercase" };
   const DINP = { width: "100%", padding: "10px 13px", border: `1px solid ${TH.inputBorder}`, fontFamily: "Inter,sans-serif", fontSize: 14, outline: "none", borderRadius: 3, boxSizing: "border-box" };
+  const [editingSection, setEditingSection] = useState(null); // "branding" | "hero" | "socials" | null
+  const [hovering, setHovering] = useState(null);
 
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 24px" }}>
@@ -1567,95 +1569,154 @@ function SchoolDashboard({ school: initialSchool, onLogout }) {
         </>}
 
         {/* ── DESIGN TAB ── */}
-        {tab === "design" && (
-          <div>
-            <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, letterSpacing: 1.2, textTransform: "uppercase", color: TH.muted, marginBottom: 20 }}>Design Your Page</div>
+        {tab === "design" && (() => {
+          const sectionStyle = (id) => ({
+            position: "relative", cursor: "pointer",
+            outline: editingSection === id ? `3px solid ${TH.accent}` : hovering === id ? `2px dashed ${TH.accent}88` : "2px dashed transparent",
+            transition: "outline 0.15s",
+          });
+          const EditBadge = ({ label }) => (
+            <div style={{
+              position: "absolute", top: 8, right: 8, zIndex: 5,
+              background: TH.accent, color: "#fff",
+              fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800,
+              padding: "4px 10px", borderRadius: 20, letterSpacing: 0.5,
+              opacity: hovering === label || editingSection === label ? 1 : 0,
+              transition: "opacity 0.15s", pointerEvents: "none",
+            }}>✏ Edit</div>
+          );
 
-            {/* Live preview strip */}
-            <div style={{ borderRadius: 6, overflow: "hidden", marginBottom: 28, boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}>
-              <div style={{
-                background: design.bannerUrl ? `url(${design.bannerUrl}) center/cover` : `linear-gradient(135deg, #1a1a2e, ${design.accentColor}cc)`,
-                padding: "32px 24px 24px",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-                  {design.logoUrl
-                    ? <img src={design.logoUrl} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: `3px solid ${design.accentColor}` }} onError={e => e.target.style.display="none"} />
-                    : <div style={{ width: 48, height: 48, borderRadius: "50%", background: design.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 22, color: "#fff" }}>{school.school_name[0]}</div>
-                  }
-                  <div>
-                    <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 20, color: "#fff" }}>{school.school_name}</div>
-                    {design.tagline && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 3 }}>{design.tagline}</div>}
+          return (
+            <div>
+              {/* Toolbar */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, padding: "10px 14px", background: TH.bg, border: `1px solid ${TH.border}`, borderRadius: 6 }}>
+                <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted }}>👆 Click any section below to edit it</span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {designSaved && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.green, fontWeight: 700 }}>✓ Saved!</span>}
+                  {editingSection && <button onClick={() => setEditingSection(null)} style={{ background: "none", border: `1px solid ${TH.border}`, padding: "6px 12px", fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted, cursor: "pointer", borderRadius: 3 }}>Done Editing</button>}
+                  <button onClick={saveDesign} disabled={designSaving} style={{ background: TH.accent, border: "none", color: "#fff", padding: "7px 16px", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 12, cursor: designSaving ? "not-allowed" : "pointer", borderRadius: 3 }}>
+                    {designSaving ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── PAGE PREVIEW ── */}
+              <div style={{ border: `1px solid ${TH.border}`, borderRadius: 8, overflow: "hidden", boxShadow: "0 4px 24px rgba(0,0,0,0.08)", marginBottom: 20 }}>
+
+                {/* Section 1: Top nav bar → edit branding */}
+                <div
+                  style={{ ...sectionStyle("branding"), background: "#0f0f0f", borderBottom: `3px solid ${design.accentColor}` }}
+                  onClick={() => setEditingSection(editingSection === "branding" ? null : "branding")}
+                  onMouseEnter={() => setHovering("branding")}
+                  onMouseLeave={() => setHovering(null)}
+                >
+                  <EditBadge label="branding" />
+                  <div style={{ padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {design.logoUrl
+                        ? <img src={design.logoUrl} alt="" style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: `2px solid ${design.accentColor}` }} onError={e => e.target.style.display="none"} />
+                        : <div style={{ width: 36, height: 36, borderRadius: "50%", background: design.accentColor, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", fontWeight: 900, fontSize: 15, color: "#fff" }}>{school.school_name[0]}</div>
+                      }
+                      <div>
+                        <div style={{ fontFamily: "Georgia,serif", fontWeight: 700, fontSize: 15, color: "#fff" }}>{school.school_name}</div>
+                        {design.tagline && <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{design.tagline}</div>}
+                      </div>
+                    </div>
+                    <span style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(255,255,255,0.3)" }}>← KrynoluxDC</span>
                   </div>
                 </div>
-                <div style={{ display: "inline-block", background: design.accentColor, color: "#fff", fontFamily: "Inter,sans-serif", fontSize: 10, fontWeight: 800, padding: "4px 10px", borderRadius: 3, letterSpacing: 1 }}>Student Journalism</div>
+
+                {/* Section 2: Hero → edit banner + color */}
+                <div
+                  style={{ ...sectionStyle("hero"), background: design.bannerUrl ? `linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.65)), url(${design.bannerUrl}) center/cover` : `linear-gradient(135deg, #1a1a2e, ${design.accentColor}cc)`, padding: "36px 20px 28px" }}
+                  onClick={() => setEditingSection(editingSection === "hero" ? null : "hero")}
+                  onMouseEnter={() => setHovering("hero")}
+                  onMouseLeave={() => setHovering(null)}
+                >
+                  <EditBadge label="hero" />
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.45)", marginBottom: 10 }}>Student Journalism</div>
+                  {design.logoUrl && <img src={design.logoUrl} alt="" style={{ width: 52, height: 52, borderRadius: "50%", objectFit: "cover", border: `3px solid ${design.accentColor}`, marginBottom: 12, display: "block" }} onError={e => e.target.style.display="none"} />}
+                  <h2 style={{ fontFamily: "Georgia,serif", fontSize: "clamp(20px,4vw,32px)", fontWeight: 700, color: "#fff", margin: "0 0 8px", lineHeight: 1.15 }}>{school.school_name} News</h2>
+                  {design.tagline && <p style={{ fontFamily: "Georgia,serif", fontSize: 13, color: "rgba(255,255,255,0.7)", margin: "0 0 8px", fontStyle: "italic" }}>{design.tagline}</p>}
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.45)", margin: 0 }}>{school.county}</p>
+                </div>
+
+                {/* Section 3: Stories placeholder */}
+                <div style={{ background: TH.bg, padding: "20px", textAlign: "center", borderTop: `1px solid ${TH.border}`, borderBottom: `1px solid ${TH.border}` }}>
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 12, color: TH.muted }}>📰 Stories will appear here once published</div>
+                </div>
+
+                {/* Section 4: Footer → edit socials */}
+                <div
+                  style={{ ...sectionStyle("socials"), background: "#0f0f0f", padding: "18px 20px", textAlign: "center" }}
+                  onClick={() => setEditingSection(editingSection === "socials" ? null : "socials")}
+                  onMouseEnter={() => setHovering("socials")}
+                  onMouseLeave={() => setHovering(null)}
+                >
+                  <EditBadge label="socials" />
+                  {[design.instagram, design.twitter, design.website].some(Boolean) ? (
+                    <div style={{ display: "flex", justifyContent: "center", gap: 20, marginBottom: 8, flexWrap: "wrap" }}>
+                      {design.instagram && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Instagram: {design.instagram}</span>}
+                      {design.twitter   && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Twitter: {design.twitter}</span>}
+                      {design.website   && <span style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Website: {design.website}</span>}
+                    </div>
+                  ) : (
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: "rgba(255,255,255,0.25)", marginBottom: 8 }}>Add social links here</div>
+                  )}
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 10, color: "rgba(255,255,255,0.2)" }}>Part of the KrynoluxDC network</div>
+                </div>
               </div>
-              <div style={{ background: TH.bg, padding: "10px 16px", fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted }}>↑ Live preview of your school page header</div>
-            </div>
 
-            {/* Accent color */}
-            <div style={{ marginBottom: 22 }}>
-              <label style={DSP}>Accent Color</label>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                {DESIGN_COLORS.map(c => (
-                  <button key={c} onClick={() => setD("accentColor", c)} style={{
-                    width: 30, height: 30, borderRadius: "50%", background: c, border: design.accentColor === c ? `3px solid ${TH.text}` : "3px solid transparent",
-                    cursor: "pointer", flexShrink: 0, boxShadow: design.accentColor === c ? "0 0 0 2px #fff, 0 0 0 4px " + TH.text : "none",
-                    transition: "box-shadow 0.15s",
-                  }} />
-                ))}
-                <input type="color" value={design.accentColor} onChange={e => setD("accentColor", e.target.value)}
-                  style={{ width: 30, height: 30, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0, background: "none" }}
-                  title="Custom color" />
-              </div>
-            </div>
+              {/* ── EDIT PANELS ── */}
+              {editingSection === "branding" && (
+                <div style={{ background: TH.card, border: `2px solid ${TH.accent}`, borderRadius: 8, padding: "20px 22px", marginBottom: 16 }}>
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, color: TH.accent, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>🏫 Branding — Logo & Name</div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={DSP}>School Logo URL</label>
+                    <input type="url" value={design.logoUrl} onChange={e => setD("logoUrl", e.target.value)} placeholder="https://yourschool.edu/logo.png" style={DINP} />
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Paste a direct image link. It shows as a circle.</div>
+                  </div>
+                  <div>
+                    <label style={DSP}>Tagline</label>
+                    <input type="text" value={design.tagline} onChange={e => setD("tagline", e.target.value)} placeholder="e.g. Where student voices are heard" maxLength={80} style={DINP} />
+                  </div>
+                </div>
+              )}
 
-            {/* Logo URL */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={DSP}>School Logo URL</label>
-              <input type="url" value={design.logoUrl} onChange={e => setD("logoUrl", e.target.value)}
-                placeholder="https://yourschool.edu/logo.png" style={DINP} />
-              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Paste a direct link to your school logo (PNG or JPG). Shown as a circle.</div>
-            </div>
+              {editingSection === "hero" && (
+                <div style={{ background: TH.card, border: `2px solid ${TH.accent}`, borderRadius: 8, padding: "20px 22px", marginBottom: 16 }}>
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, color: TH.accent, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>🖼 Hero — Banner & Color</div>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={DSP}>Accent Color</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      {DESIGN_COLORS.map(c => (
+                        <button key={c} onClick={() => setD("accentColor", c)} style={{ width: 32, height: 32, borderRadius: "50%", background: c, border: "none", cursor: "pointer", flexShrink: 0, boxShadow: design.accentColor === c ? `0 0 0 3px #fff, 0 0 0 5px ${c}` : "0 1px 4px rgba(0,0,0,0.2)", transition: "box-shadow 0.15s" }} />
+                      ))}
+                      <input type="color" value={design.accentColor} onChange={e => setD("accentColor", e.target.value)} style={{ width: 32, height: 32, borderRadius: "50%", border: `2px dashed ${TH.border}`, cursor: "pointer", padding: 2, background: "none" }} title="Custom color" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={DSP}>Banner Image URL</label>
+                    <input type="url" value={design.bannerUrl} onChange={e => setD("bannerUrl", e.target.value)} placeholder="https://yourschool.edu/banner.jpg" style={DINP} />
+                    <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Wide landscape photo. Shown as the hero background.</div>
+                  </div>
+                </div>
+              )}
 
-            {/* Banner URL */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={DSP}>Hero Banner Image URL</label>
-              <input type="url" value={design.bannerUrl} onChange={e => setD("bannerUrl", e.target.value)}
-                placeholder="https://yourschool.edu/banner.jpg" style={DINP} />
-              <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 4 }}>Background image for the top of your page. Wide landscape images work best.</div>
+              {editingSection === "socials" && (
+                <div style={{ background: TH.card, border: `2px solid ${TH.accent}`, borderRadius: 8, padding: "20px 22px", marginBottom: 16 }}>
+                  <div style={{ fontFamily: "Inter,sans-serif", fontSize: 11, fontWeight: 800, color: TH.accent, letterSpacing: 1, textTransform: "uppercase", marginBottom: 16 }}>🔗 Social Links</div>
+                  {[["Instagram", "instagram", "@yourschool"], ["Twitter / X", "twitter", "@yourschool"], ["School Website", "website", "https://yourschool.edu"]].map(([lbl, key, ph]) => (
+                    <div key={key} style={{ marginBottom: 14 }}>
+                      <label style={DSP}>{lbl}</label>
+                      <input type="text" value={design[key]} onChange={e => setD(key, e.target.value)} placeholder={ph} style={DINP} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-
-            {/* Tagline */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={DSP}>School Tagline</label>
-              <input type="text" value={design.tagline} onChange={e => setD("tagline", e.target.value)}
-                placeholder="e.g. Where student voices are heard" maxLength={80} style={DINP} />
-            </div>
-
-            {/* Social links */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={DSP}>Instagram</label>
-              <input type="text" value={design.instagram} onChange={e => setD("instagram", e.target.value)}
-                placeholder="@yourschool" style={DINP} />
-            </div>
-            <div style={{ marginBottom: 18 }}>
-              <label style={DSP}>Twitter / X</label>
-              <input type="text" value={design.twitter} onChange={e => setD("twitter", e.target.value)}
-                placeholder="@yourschool" style={DINP} />
-            </div>
-            <div style={{ marginBottom: 24 }}>
-              <label style={DSP}>School Website</label>
-              <input type="url" value={design.website} onChange={e => setD("website", e.target.value)}
-                placeholder="https://yourschool.edu" style={DINP} />
-            </div>
-
-            {designSaved && <div style={{ background: "#f0faf4", borderLeft: `3px solid ${TH.green}`, padding: "10px 14px", marginBottom: 14, fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.green, fontWeight: 700 }}>✓ Design saved!</div>}
-            <button onClick={saveDesign} disabled={designSaving}
-              style={{ background: TH.accent, border: "none", color: "#fff", padding: "13px 28px", fontFamily: "Inter,sans-serif", fontWeight: 800, fontSize: 14, cursor: designSaving ? "not-allowed" : "pointer", borderRadius: 3, opacity: designSaving ? 0.7 : 1 }}>
-              {designSaving ? "Saving…" : "Save Design →"}
-            </button>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── STORIES TAB ── */}
         {tab === "stories" && (
