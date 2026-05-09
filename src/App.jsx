@@ -728,10 +728,37 @@ function WeatherWidget() {
 
 // ── POLL ──────────────────────────────────────────────────────────────────────
 function Poll() {
-  const [voted, setVoted] = useState(null);
-  const opts = ["Climate & Environment", "School Policies", "Local Sports", "Youth Entrepreneurs"];
-  const votes = [340, 280, 190, 210];
-  const total = votes.reduce((a, b) => a + b, 0);
+  const [question, setQuestion] = useState("");
+  const [opts,     setOpts]     = useState([]);
+  const [votes,    setVotes]    = useState({});
+  const [voted,    setVoted]    = useState(null);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("krynolux_poll_voted");
+    if (stored) setVoted(stored);
+    supabase.from("site_settings").select("pollQuestion, pollOptions, pollVotes").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data) {
+          setQuestion(data.pollQuestion || "");
+          setOpts(data.pollOptions || []);
+          setVotes(data.pollVotes || {});
+        }
+        setLoading(false);
+      });
+  }, []);
+
+  async function castVote(opt) {
+    if (voted) return;
+    setVoted(opt);
+    localStorage.setItem("krynolux_poll_voted", opt);
+    setVotes(v => ({ ...v, [opt]: (v[opt] || 0) + 1 }));
+    await supabase.rpc("vote_poll", { option_text: opt });
+  }
+
+  const total = opts.reduce((s, o) => s + (votes[o] || 0), 0);
+
+  if (loading) return null;
 
   return (
     <div style={{ background: TH.card, border: `1px solid ${TH.border}` }}>
@@ -739,47 +766,29 @@ function Poll() {
         <SideLabel>Reader Poll</SideLabel>
       </div>
       <div style={{ padding: "0 16px 16px" }}>
-        <p style={{
-          fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700,
-          color: TH.text, marginBottom: 16, lineHeight: 1.4,
-        }}>What should we cover more?</p>
-        {opts.map((o, i) => {
-          const pct = Math.round((votes[i] / total) * 100);
-          const active = voted === i;
+        <p style={{ fontFamily: "Georgia,serif", fontSize: 15.5, fontWeight: 700, color: TH.text, marginBottom: 16, lineHeight: 1.4 }}>
+          {question || "What should we cover more?"}
+        </p>
+        {opts.map(o => {
+          const count = votes[o] || 0;
+          const pct   = total > 0 ? Math.round((count / total) * 100) : 0;
+          const active = voted === o;
           return (
-            <div
-              key={o}
-              onClick={() => setVoted(i)}
-              style={{ marginBottom: 12, cursor: "pointer" }}
-            >
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                fontFamily: "Inter,sans-serif", fontSize: 12,
-                color: active ? TH.accent : TH.sub,
-                fontWeight: active ? 700 : 400, marginBottom: 5,
-              }}>
+            <div key={o} onClick={() => castVote(o)} style={{ marginBottom: 12, cursor: voted ? "default" : "pointer" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontFamily: "Inter,sans-serif", fontSize: 12, color: active ? TH.accent : TH.sub, fontWeight: active ? 700 : 400, marginBottom: 5 }}>
                 <span>{o}</span>
-                <span style={{ fontWeight: 700 }}>{voted !== null ? `${pct}%` : ""}</span>
+                <span style={{ fontWeight: 700 }}>{voted ? `${pct}%` : ""}</span>
               </div>
               <div style={{ background: TH.bg, border: `1px solid ${TH.border}`, height: 6, overflow: "hidden" }}>
-                <div style={{
-                  width: voted !== null ? `${pct}%` : "0%",
-                  height: "100%",
-                  background: active ? TH.accent : (CAT_COLOR[opts[i]] || TH.muted),
-                  transition: "width 0.6s ease, background 0.3s",
-                }} />
+                <div style={{ width: voted ? `${pct}%` : "0%", height: "100%", background: active ? TH.accent : TH.muted, transition: "width 0.6s ease" }} />
               </div>
             </div>
           );
         })}
-        {voted !== null ? (
-          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.green, marginTop: 10, fontWeight: 600 }}>
-            ✓ Thanks for voting! Results updated.
-          </p>
+        {voted ? (
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.green, marginTop: 10, fontWeight: 600 }}>✓ Thanks for voting! {total} total vote{total !== 1 ? "s" : ""}.</p>
         ) : (
-          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 6 }}>
-            Click an option to vote
-          </p>
+          <p style={{ fontFamily: "Inter,sans-serif", fontSize: 11, color: TH.muted, marginTop: 6 }}>Click an option to vote</p>
         )}
       </div>
     </div>
