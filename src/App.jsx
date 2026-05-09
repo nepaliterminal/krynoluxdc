@@ -648,6 +648,46 @@ function ArticleCard({ article, onClick, horizontal = false }) {
   );
 }
 
+// ── AD SLOTS ──────────────────────────────────────────────────────────────────
+// Replace the placeholder divs with real <ins class="adsbygoogle"> tags after AdSense approval.
+// Set VITE_ADSENSE_CLIENT in .env to your ca-pub-XXXXXXXX ID to activate real ads.
+const ADSENSE_CLIENT = import.meta.env.VITE_ADSENSE_CLIENT || null;
+
+function AdSlot({ slot, format = "auto", style: extra = {} }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ADSENSE_CLIENT && ref.current) {
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch {}
+    }
+  }, []);
+
+  if (ADSENSE_CLIENT) {
+    return (
+      <ins
+        ref={ref}
+        className="adsbygoogle"
+        style={{ display: "block", ...extra }}
+        data-ad-client={ADSENSE_CLIENT}
+        data-ad-slot={slot}
+        data-ad-format={format}
+        data-full-width-responsive="true"
+      />
+    );
+  }
+
+  // Placeholder shown until AdSense is approved
+  return (
+    <div style={{
+      background: TH.bg, border: `1px dashed ${TH.border}`, display: "flex",
+      alignItems: "center", justifyContent: "center", minHeight: 90,
+      fontFamily: "Inter,sans-serif", fontSize: 10, color: TH.muted,
+      letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, ...extra,
+    }}>
+      Advertisement
+    </div>
+  );
+}
+
 // ── WEATHER WIDGET ────────────────────────────────────────────────────────────
 function WeatherWidget() {
   const [wx, setWx] = useState(null);
@@ -1222,18 +1262,24 @@ function ContactPage() {
 
 function PrivacyPage() {
   const sections = [
-    ["Information We Collect", "We collect information you provide when submitting stories including your name, school, and email address. This is used solely to process your submission and contact you about it."],
-    ["How We Use Information", "Your information is used to review and publish articles and to contact contributors. We do not sell or share your personal information with third parties."],
-    ["Data Security", "All submitted data is stored securely. Email addresses are never displayed publicly on the website."],
-    ["Your Rights", "You may request deletion of your content or personal data at any time by contacting us at contact@krynolux.work."],
-    ["Children's Privacy", "KrynoluxDC serves users of all ages. We take special care to protect the privacy of minors and comply with applicable children's privacy laws."],
+    ["Information We Collect", "We collect information you voluntarily provide when submitting stories, signing up for our newsletter, or contacting us — including your name, school, and email address. We also automatically collect standard log data such as your IP address, browser type, and pages visited when you use our site."],
+    ["How We Use Information", "Your information is used to review and publish submitted articles, send newsletters you have opted into, respond to inquiries, and improve our website. We do not sell or share your personal information with third parties for their marketing purposes."],
+    ["Cookies", "KrynoluxDC uses cookies and similar tracking technologies to enhance your experience, remember your preferences (such as poll votes), and analyze site traffic. You can control cookies through your browser settings. Disabling cookies may affect some site features."],
+    ["Third-Party Advertising", "We use Google AdSense to display advertisements on our website. Google AdSense uses cookies to serve ads based on your prior visits to this and other websites. Google's use of advertising cookies enables it and its partners to serve ads based on your visit to our site and/or other sites on the internet. You may opt out of personalized advertising by visiting Google's Ads Settings at adssettings.google.com. For more information on how Google uses data, visit google.com/policies/privacy/partners."],
+    ["Third-Party Services", "Our site may use third-party services including Google Analytics and Supabase for data storage. These services have their own privacy policies governing their use of your information."],
+    ["Data Security", "All submitted data is stored securely using industry-standard encryption. Email addresses are never displayed publicly on the website."],
+    ["Your Rights", "You may request access to, correction of, or deletion of your personal data at any time by contacting us at contact@krynolux.work. We will respond within 30 days."],
+    ["Children's Privacy", "KrynoluxDC serves users of all ages including minors. We do not knowingly collect personal information from children under 13 without verifiable parental consent. If you believe we have collected information from a child under 13, please contact us immediately."],
+    ["Changes to This Policy", "We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated effective date. Continued use of the site constitutes acceptance of the updated policy."],
+    ["Contact", "If you have any questions about this Privacy Policy, please contact us at contact@krynolux.work."],
   ];
   return (
     <StaticPage section="Legal" title="Privacy Policy">
+      <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: TH.muted, marginBottom: 32 }}>Effective date: May 2026 · Last updated: May 2026</p>
       {sections.map(([title, body]) => (
         <div key={title} style={{ marginBottom: 28 }}>
           <h3 style={{ fontFamily: "Georgia,serif", fontSize: 20, color: TH.text, marginBottom: 10 }}>{title}</h3>
-          <p style={{ margin: 0, color: TH.sub }}>{body}</p>
+          <p style={{ margin: 0, color: TH.sub, lineHeight: 1.8 }}>{body}</p>
         </div>
       ))}
     </StaticPage>
@@ -2484,6 +2530,8 @@ export default function App() {
                           <ArticleCard key={s.id} article={s} onClick={setSelectedArticle} />
                         ))}
                       </div>
+                      {/* In-feed ad after first grid */}
+                      <AdSlot slot="2222222222" format="fluid" style={{ marginBottom: 24 }} />
                     </>
                   )}
 
@@ -2608,10 +2656,18 @@ export default function App() {
 
               {/* Newsletter signup */}
               <NewsletterSignup />
+
+              {/* Sidebar ad */}
+              <AdSlot slot="1111111111" format="auto" style={{ minHeight: 250 }} />
             </aside>
           </div>
         </main>
       )}
+
+      {/* Banner ad above footer */}
+      <div style={{ background: TH.bg, padding: "16px 24px" }}>
+        <AdSlot slot="3333333333" format="horizontal" style={{ minHeight: 90 }} />
+      </div>
 
       {/* Newsletter strip */}
       <NewsletterStrip />
